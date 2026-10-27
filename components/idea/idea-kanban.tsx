@@ -249,46 +249,45 @@ const IdeaKanban = () => {
     return (
         <>
             <div className="flex min-h-0 flex-col gap-5">
-                <header className="relative isolate overflow-hidden rounded-[28px] border border-[#25351f] bg-[#11190f] px-5 py-5 text-white shadow-[0_22px_60px_rgba(27,48,18,0.14)] sm:px-7 sm:py-6">
-                    <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_0%,rgba(196,242,100,0.16),transparent_50%)]" />
-                    <div aria-hidden="true" className="absolute -right-10 -top-24 size-72 rounded-full border border-white/[0.08]" />
-                    <div aria-hidden="true" className="absolute -right-2 -top-16 size-56 rounded-full border border-primary/15" />
-                    <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[42%] md:block">
-                        <Image
-                            src="/images/lemon-orbit.png"
-                            alt=""
-                            fill
-                            sizes="(max-width: 768px) 0px, 40vw"
-                            className="object-cover object-right opacity-80 mix-blend-screen"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-r from-[#11190f] via-[#11190f]/45 to-transparent" />
+                <header className="relative isolate overflow-hidden rounded-[32px] border border-border/70 bg-card shadow-sm">
+                    <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[38%] md:block">
+                        <div className="relative h-full min-h-[232px] bg-[#f7edca]">
+                            <Image
+                                src="/images/lemon-editorial-collage.png"
+                                alt=""
+                                fill
+                                sizes="(max-width: 768px) 0px, 36vw"
+                                className="object-cover object-right"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-card via-card/30 to-transparent" />
+                        </div>
                     </div>
 
-                    <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                    <div className="relative z-10 flex min-h-[232px] flex-col justify-between gap-5 p-5 sm:p-7 md:pr-[37%]">
                         <div className="max-w-2xl">
-                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-[#d7f99d]">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-secondary px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-secondary-foreground">
                                 <Sparkles className="size-3.5" />
                                 Le laboratoire créatif
                             </div>
-                            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-4xl">
-                                Faites éclore <span className="text-[#c4f264]">vos idées.</span>
+                            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-4xl">
+                                Faites éclore <span className="text-gradient-lime-simple">vos idées.</span>
                             </h1>
-                            <p className="mt-3 max-w-xl text-sm leading-6 text-white/65 sm:text-base">
+                            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
                                 Capturez l&apos;étincelle, façonnez votre prochaine histoire, puis faites-la voyager sur tous vos canaux.
                             </p>
                             <div className="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.13em]">
-                                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-white/75">
+                                <span className="rounded-full border border-border/70 bg-background/85 px-3 py-2 text-foreground/75">
                                     {totalIdeas} idée{totalIdeas > 1 ? "s" : ""} en mouvement
                                 </span>
-                                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-white/50">
+                                <span className="rounded-full border border-border/70 bg-background/85 px-3 py-2 text-muted-foreground">
                                     {columns.length} étapes de création
                                 </span>
                             </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 md:flex-col md:items-stretch lg:flex-row">
+                        <div className="flex flex-wrap items-center gap-2">
                             <GenerateIdeasPopover onGenerated={handleGeneratedIdea} />
                             <Button
-                                className="h-10 gap-2 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground shadow-[0_8px_24px_rgba(163,230,53,0.18)] hover:-translate-y-0.5 hover:bg-primary"
+                                className="h-10 gap-2 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground shadow-md hover:-translate-y-0.5"
                                 onClick={() => handleAddIdea(columns[0]?.id ?? "")}
                             >
                                 <Plus className="size-3.5" />
@@ -305,7 +304,7 @@ const IdeaKanban = () => {
                         {isPending ? (
                             <div className="flex gap-3 w-full h-full items-start">
                                 {[1, 2, 3, 4].map((i) => (
-                                            <div key={i} className="flex h-full min-h-0 w-[252px] shrink-0 flex-col rounded-3xl border border-border/70 bg-card/70 p-3 shadow-sm">
+                                            <div key={i} className="flex h-full min-h-0 w-[272px] shrink-0 flex-col rounded-3xl border border-border/70 bg-card/70 p-3 shadow-sm">
                                         <div className="flex items-center justify-between pb-3 px-1">
                                             <Skeleton className="h-4 w-20 rounded-full" />
                                             <Skeleton className="h-5 w-6 rounded-full" />
@@ -325,12 +324,13 @@ const IdeaKanban = () => {
                                         style={{ height: "100%" }}
                                         className="flex gap-3 w-full"
                                     >
-                                        {columns?.map((column) => (
+                                        {columns?.map((column, columnIndex) => (
                                             <div
                                                 key={column.id}
-                                                className="flex h-full min-h-0 w-[252px] shrink-0 flex-col rounded-3xl border border-border/70 bg-card/75 p-3 shadow-sm backdrop-blur-sm"
+                                                className="flex h-full min-h-0 w-[272px] shrink-0 flex-col rounded-3xl border border-border/70 bg-card p-3 shadow-sm"
                                             >
-                                                <div className="flex items-center justify-between px-2 pt-2 pb-3">
+                                                <div aria-hidden="true" className="mb-3 h-1 w-10 rounded-full" style={{ backgroundColor: `var(--chart-${(columnIndex % 5) + 1})` }} />
+                                                <div className="flex items-center justify-between px-2 pb-3">
                                                     <div className="flex items-center gap-2">
                                                         <h3 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-foreground/65">
                                                             {column.title}

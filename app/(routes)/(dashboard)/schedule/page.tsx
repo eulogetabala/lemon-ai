@@ -22,59 +22,62 @@ const SchedulePageContent = () => {
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-2xl">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-accent-foreground">
-            <CalendarDays className="size-3.5" />
-            Votre calendrier social
-          </div>
-          <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-4xl">
-            Le bon contenu, <span className="text-primary">au bon moment.</span>
-          </h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            Une vue claire sur vos publications à venir, vos brouillons et tout ce qui est déjà parti.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-1 rounded-2xl border border-border/80 bg-card p-1 shadow-sm">
-            <button
-              type="button"
-              aria-pressed={activeView === "list"}
-              onClick={() => { setStatus(null); setActiveView("list") }}
-              className={cn(
-                "flex h-9 items-center gap-2 rounded-xl px-3.5 text-xs font-bold transition-all",
-                activeView === "list" ? "bg-[#172116] text-white shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <LayoutList className="size-3.5" />
-              Liste
-            </button>
-            <button
-              type="button"
-              aria-pressed={activeView === "calendar"}
-              onClick={() => { setStatus(null); setActiveView("calendar") }}
-              className={cn(
-                "flex h-9 items-center gap-2 rounded-xl px-3.5 text-xs font-bold transition-all",
-                activeView === "calendar" ? "bg-[#172116] text-white shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <CalendarIcon className="size-3.5" />
-              Calendrier
-            </button>
+      <header className="relative isolate overflow-hidden rounded-[32px] border border-border/70 bg-card shadow-sm">
+        <div aria-hidden="true" className="absolute -right-16 -top-28 size-72 rounded-full bg-accent/30 blur-3xl" />
+        <div className="relative flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-secondary px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-secondary-foreground">
+              <CalendarDays className="size-3.5" />
+              Votre rythme de publication
+            </div>
+            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-4xl">
+              Faites circuler <span className="text-gradient-lime-simple">vos idées.</span>
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              Brouillons, publications à venir et contenus déjà partis — tout votre tempo social, au même endroit.
+            </p>
           </div>
 
-          <Button asChild variant="outline" className="h-11 gap-2 rounded-2xl border-border/80 bg-card px-4 text-xs font-semibold shadow-sm hover:bg-muted">
-            <Link href="/schedule/history">
-              <History className="size-3.5" />
-              Historique
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="inline-flex items-center gap-1 rounded-2xl border border-border/80 bg-background/80 p-1 shadow-sm">
+              <button
+                type="button"
+                aria-pressed={activeView === "list"}
+                onClick={() => { setStatus(null); setActiveView("list") }}
+                className={cn(
+                  "flex h-9 items-center gap-2 rounded-xl px-3.5 text-xs font-bold transition-all",
+                  activeView === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <LayoutList className="size-3.5" />
+                Liste
+              </button>
+              <button
+                type="button"
+                aria-pressed={activeView === "calendar"}
+                onClick={() => { setStatus(null); setActiveView("calendar") }}
+                className={cn(
+                  "flex h-9 items-center gap-2 rounded-xl px-3.5 text-xs font-bold transition-all",
+                  activeView === "calendar" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <CalendarIcon className="size-3.5" />
+                Calendrier
+              </button>
+            </div>
 
-          <Button onClick={() => setCreatePostModalOpen(true)} className="h-11 gap-2 rounded-2xl px-4 text-xs font-bold shadow-[0_8px_24px_rgba(163,230,53,0.18)]">
-            <Plus className="size-3.5" />
-            Ajouter
-          </Button>
+            <Button asChild variant="outline" className="h-11 gap-2 rounded-2xl border-border/80 bg-card px-4 text-xs font-semibold shadow-sm hover:bg-muted">
+              <Link href="/schedule/history">
+                <History className="size-3.5" />
+                Historique
+              </Link>
+            </Button>
+
+            <Button onClick={() => setCreatePostModalOpen(true)} className="h-11 gap-2 rounded-2xl px-4 text-xs font-bold shadow-md">
+              <Plus className="size-3.5" />
+              Ajouter
+            </Button>
+          </div>
         </div>
       </header>
 

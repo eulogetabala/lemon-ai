@@ -107,7 +107,7 @@ export default function ScheduleHistoryDetailPage() {
   const preview = stripRichTextFormatting(post.content || "") || "Aucun contenu";
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-4xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <Button asChild variant="outline">
           <Link href="/schedule/history">
@@ -117,8 +117,8 @@ export default function ScheduleHistoryDetailPage() {
         </Button>
       </div>
 
-      <Card className="overflow-hidden">
-        <CardHeader className="space-y-4 border-b">
+      <Card className="overflow-hidden rounded-[28px] border-border/70 bg-card shadow-sm">
+        <CardHeader className="space-y-4 border-b border-border/70 bg-secondary/25">
           <div className="flex flex-wrap items-center gap-3">
             {channel ? (
               <ChannelAvatar

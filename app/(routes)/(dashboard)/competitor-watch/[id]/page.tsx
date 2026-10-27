@@ -68,7 +68,7 @@ function StatTile({
   change: number
 }) {
   return (
-    <div className="group rounded-3xl border border-border/70 bg-card p-5 shadow-[0_14px_38px_rgba(33,52,24,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group rounded-3xl border border-border/70 bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
         <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-primary to-primary/40" />
@@ -296,30 +296,30 @@ export default function CompetitorDetailPage() {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_70px_rgba(33,52,24,0.08)]">
-        <div className="relative isolate overflow-hidden border-b border-white/10 bg-[#11190f] px-6 py-6 text-white sm:px-8">
-          <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_18%_0%,rgba(196,242,100,0.16),transparent_50%)]" />
-          <div aria-hidden="true" className="absolute -right-12 -top-28 size-80 rounded-full border border-primary/15" />
+      <div className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-lg">
+        <div className="relative isolate overflow-hidden border-b border-border/70 bg-secondary/45 px-6 py-6 sm:px-8">
+          <div aria-hidden="true" className="absolute -right-12 -top-24 size-72 rounded-full bg-accent/30 blur-3xl" />
+          <div aria-hidden="true" className="absolute -right-12 -top-28 size-80 rounded-full border border-primary/10" />
           <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="flex min-w-0 flex-1 items-center gap-4">
-              <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary/60 text-lg font-bold text-primary-foreground shadow-sm">
+              <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-chart-3 text-lg font-bold text-primary-foreground shadow-sm">
                 {competitor.name.slice(0, 2).toUpperCase()}
               </div>
 
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-white">{competitor.name}</h1>
+                  <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-foreground">{competitor.name}</h1>
                   {competitor.verified && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
                       Connecté
                     </span>
                   )}
-                  <Badge variant="secondary" className="rounded-full border border-white/15 bg-white/[0.08] text-xs font-semibold text-white/80">
+                  <Badge variant="secondary" className="rounded-full border border-border/70 bg-background/75 text-xs font-semibold text-foreground/80">
                     {competitor.industry || "—"}
                   </Badge>
                 </div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/60">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   {competitor.platforms.map((p) => {
                     const profileUrl = p.profileUrl || buildProfileUrl(p.platform, p.handle)
                     return (
@@ -328,7 +328,7 @@ export default function CompetitorDetailPage() {
                         href={profileUrl ?? undefined}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="tabular-nums underline-offset-2 hover:underline"
+                        className="tabular-nums underline-offset-2 hover:text-foreground hover:underline"
                       >
                         {PLATFORM_META[p.platform].label} · {p.handle} · {formatNumber(p.followers)} abonnés
                       </a>
@@ -339,12 +339,12 @@ export default function CompetitorDetailPage() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <Button variant="outline" size="sm" className="rounded-xl border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12]" onClick={handleSync} disabled={isSyncing}>
+              <Button variant="outline" size="sm" className="rounded-xl border-border bg-background/80 text-foreground hover:bg-background" onClick={handleSync} disabled={isSyncing}>
                 <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
                 {isSyncing ? "Synchronisation…" : "Synchroniser"}
               </Button>
               {competitor.website && (
-                <Button variant="outline" size="sm" asChild className="shrink-0 rounded-xl border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12]">
+                <Button variant="outline" size="sm" asChild className="shrink-0 rounded-xl border-border bg-background/80 text-foreground hover:bg-background">
                   <a href={competitor.website} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="size-3.5" />
                     Site web

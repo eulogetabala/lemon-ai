@@ -4,8 +4,11 @@ import { Suspense, useEffect } from 'react'
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation'
+import { AlertCircle, RadioTower, RefreshCw } from 'lucide-react'
 import { ChannelType, ConnectedAccountType } from '@/types/channel.type';
+import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '../ui/empty';
 import { Skeleton } from '../ui/skeleton';
 import { getChannelIcon } from '@/constants/channels';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -22,16 +25,18 @@ function ChannelTabContent() {
     const queryClient = useQueryClient()
     const fbPickerOpen = searchParams.get("fb_page_select") === "true"
 
-    const { data: channelsData, isPending } = useQuery({
+    const { data: channelsData, isPending, isError, refetch } = useQuery({
         queryKey: ["channels"],
         queryFn: async () => {
             const res = await fetch("/api/channel");
-            const data = await res.json();
-            return data
+            if (!res.ok) throw new Error("Impossible de charger les canaux");
+            return res.json();
         }
     })
     const channels = (channelsData?.channels || []) as ChannelType[]
     const accounts = (channelsData?.accounts || []) as ConnectedAccountType[]
+    const connectedCount = channelsData?.connectedCount ?? channels.filter((channel) => channel.connected).length
+    const totalChannels = channelsData?.totalChannels ?? channels.length
 
     useEffect(() => {
         const connected = searchParams.get("connected")
@@ -117,16 +122,55 @@ function ChannelTabContent() {
     }
     return (
         <>
-            <Card className="overflow-hidden rounded-[28px] border-border/70 bg-card shadow-[0_18px_50px_rgba(33,52,24,0.06)]">
-                <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-transparent to-transparent p-6">
-                    <CardTitle>Canaux</CardTitle>
-                    <CardDescription>
-                        Connectez vos comptes de réseaux sociaux pour commencer à planifier
-                    </CardDescription>
+            <Card className="overflow-hidden rounded-[30px] border-border/70 bg-card shadow-sm">
+                <CardHeader className="flex flex-col gap-3 border-b border-border/70 bg-accent/20 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+                    <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary">Écosystème social</p>
+                        <CardTitle className="mt-1 text-xl">Un seul studio. Tous vos réseaux.</CardTitle>
+                        <CardDescription className="mt-1">
+                            Reliez vos comptes pour planifier, publier et suivre vos contenus au même endroit.
+                        </CardDescription>
+                    </div>
+                    <Badge variant="secondary" className="w-fit shrink-0 rounded-full px-3 py-1.5 text-[10px] font-bold">
+                        {isPending ? "Chargement…" : isError ? "Indisponible" : `${connectedCount} / ${totalChannels} connectés`}
+                    </Badge>
                 </CardHeader>
 
-                <CardContent className="space-y-3 p-5 sm:p-6">
-                    <div className="flex flex-col gap-3">
+                <CardContent className="p-4 sm:p-6">
+                    {isError ? (
+                        <div role="alert" className="flex flex-col gap-4 rounded-3xl border border-destructive/30 bg-destructive/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-3">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+                                    <AlertCircle className="size-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-foreground">Impossible de charger vos réseaux</p>
+                                    <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">Le service de données ne répond pas. Réessayez dans un instant.</p>
+                                </div>
+                            </div>
+                            <Button variant="outline" className="gap-2 rounded-xl" onClick={() => void refetch()}>
+                                <RefreshCw className="size-4" />
+                                Réessayer
+                            </Button>
+                        </div>
+                    ) : !isPending && channels.length === 0 ? (
+                        <Empty className="min-h-64 rounded-3xl border border-dashed border-border/80 bg-background/60">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon" className="size-14 rounded-2xl bg-accent text-accent-foreground">
+                                    <RadioTower className="size-6" />
+                                </EmptyMedia>
+                                <EmptyTitle className="text-xl font-extrabold">La scène est prête.</EmptyTitle>
+                                <EmptyDescription>Les plateformes disponibles apparaîtront ici dès que la liste des canaux sera configurée.</EmptyDescription>
+                            </EmptyHeader>
+                            <EmptyContent>
+                                <Button variant="outline" className="gap-2 rounded-xl" onClick={() => void refetch()}>
+                                    <RefreshCw className="size-4" />
+                                    Recharger la liste
+                                </Button>
+                            </EmptyContent>
+                        </Empty>
+                    ) : (
+                    <div className="grid gap-3 xl:grid-cols-2">
                         {isPending ? (
                             Array.from({ length: 6 }).map((_, index) => (
                                 <div key={index} className='flex items-center justify-between rounded-xl border p-4'>
@@ -158,7 +202,7 @@ function ChannelTabContent() {
                                                                 style={{ background: channel.color }}
                                                             />
                                                         ) : null}
-                                                        <div className='absolute -right-1 -bottom-1 bg-white dark:bg-background rounded-full p-0.5'>
+                                                        <div className='absolute -right-1 -bottom-1 bg-card rounded-full p-0.5'>
                                                             <div className='size-2.5 bg-primary rounded-full' />
                                                         </div>
                                                     </span>
@@ -216,7 +260,7 @@ function ChannelTabContent() {
                                                     />
                                                 ) : null}
 
-                                                <div className={cn(`absolute -right-1 bottom-0 p-0.5 bg-white dark:bg-background rounded-xs
+                                                <div className={cn(`absolute -right-1 bottom-0 p-0.5 bg-card rounded-xs
                                            `,
                                                     {
                                                         "bg-transparent p-0 rounded-full -bottom-1 -right-0.5": channel.connected
@@ -248,6 +292,7 @@ function ChannelTabContent() {
                             })
                         )}
                     </div>
+                    )}
                 </CardContent>
             </Card>
 

@@ -106,29 +106,28 @@ export default function BillingPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1500px]">
-      <header className="relative isolate mb-7 overflow-hidden rounded-[30px] border border-[#25351f] bg-[#11190f] px-5 py-6 text-white shadow-[0_22px_60px_rgba(27,48,18,0.14)] sm:px-8 sm:py-8">
-        <div aria-hidden="true" className="absolute -right-10 -top-28 size-80 rounded-full border border-primary/15" />
-        <div aria-hidden="true" className="absolute -right-2 -top-20 size-64 rounded-full border border-white/[0.08]" />
-        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_90%_0%,rgba(196,242,100,0.16),transparent_45%)]" />
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <header className="relative isolate mb-7 overflow-hidden rounded-[32px] border border-border/70 bg-card shadow-sm">
+        <div aria-hidden="true" className="absolute -right-10 -top-28 size-80 rounded-full bg-accent/30 blur-3xl" />
+        <div aria-hidden="true" className="absolute -right-2 -top-20 size-64 rounded-full border border-primary/10" />
+        <div className="relative z-10 flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="mb-3 text-[9px] font-extrabold uppercase tracking-[0.22em] text-[#d7f99d]">Lemon, à votre rythme</p>
-            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-4xl">
-              Grandissez <span className="text-[#c4f264]">sans changer de cadence.</span>
+            <p className="mb-3 text-[9px] font-extrabold uppercase tracking-[0.22em] text-primary">Le bon plan, au bon moment</p>
+            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-4xl">
+              Grandissez <span className="text-gradient-lime-simple">à votre rythme.</span>
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
               Des outils pour chaque étape de votre présence sociale. Changez d&apos;offre quand vous le souhaitez.
             </p>
           </div>
 
           <div className="shrink-0">
-            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">Facturation</p>
-            <div className="inline-flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.06] p-1">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Facturation</p>
+            <div className="inline-flex items-center gap-1 rounded-2xl border border-border/70 bg-background/80 p-1 shadow-sm">
               <button
                 type="button"
                 aria-pressed={interval === "monthly"}
                 onClick={() => setInterval("monthly")}
-                className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${interval === "monthly" ? "bg-[#c4f264] text-[#17200f] shadow-sm" : "text-white/65 hover:text-white"}`}
+                className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${interval === "monthly" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 Mensuel
               </button>
@@ -136,10 +135,10 @@ export default function BillingPage() {
                 type="button"
                 aria-pressed={interval === "yearly"}
                 onClick={() => setInterval("yearly")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${interval === "yearly" ? "bg-[#c4f264] text-[#17200f] shadow-sm" : "text-white/65 hover:text-white"}`}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${interval === "yearly" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 Annuel
-                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-extrabold text-[#d7f99d]">−20 %</span>
+                <span className="rounded-full bg-accent px-2 py-0.5 text-[9px] font-extrabold text-accent-foreground">−20 %</span>
               </button>
             </div>
           </div>
@@ -154,8 +153,8 @@ export default function BillingPage() {
               key={plan.id}
               className={`relative flex flex-col rounded-[26px] border p-1.5 transition-all duration-300 ${
                 plan.highlight
-                  ? "border-primary/55 bg-primary/10 shadow-[0_20px_55px_rgba(120,170,45,0.16)]"
-                  : "border-border/70 bg-card shadow-[0_14px_38px_rgba(33,52,24,0.05)] hover:-translate-y-1 hover:border-primary/35 hover:shadow-lg"
+                  ? "border-primary/50 bg-primary/5 shadow-lg"
+                  : "border-border/70 bg-card shadow-sm hover:-translate-y-1 hover:border-primary/35 hover:shadow-md"
               }`}
             >
               {/* Inner surface */}
@@ -167,7 +166,7 @@ export default function BillingPage() {
 
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center rounded-full bg-[#c4f264] px-3 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-[#17200f] shadow-[0_8px_24px_rgba(163,230,53,0.28)]">
+                  <span className="inline-flex items-center rounded-full bg-accent px-3 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-accent-foreground shadow-md">
                     {plan.badge}
                   </span>
                 </div>

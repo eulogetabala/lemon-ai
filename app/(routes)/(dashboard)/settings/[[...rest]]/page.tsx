@@ -18,27 +18,26 @@ const SettingsPage = () => {
 
   return (
     <div className="mx-auto w-full max-w-[1500px]">
-      <header className="relative isolate mb-6 overflow-hidden rounded-[30px] border border-[#25351f] bg-[#11190f] px-5 py-6 text-white shadow-[0_22px_60px_rgba(27,48,18,0.14)] sm:px-8 sm:py-8">
-        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_12%_0%,rgba(196,242,100,0.17),transparent_48%)]" />
-        <div aria-hidden="true" className="absolute -right-20 -top-32 size-80 rounded-full border border-white/[0.07]" />
-        <div aria-hidden="true" className="absolute -right-10 -top-20 size-60 rounded-full border border-primary/15" />
+      <header className="relative isolate mb-6 overflow-hidden rounded-[32px] border border-border/70 bg-card shadow-sm">
+        <div aria-hidden="true" className="absolute -right-20 -top-28 size-80 rounded-full bg-accent/35 blur-3xl" />
+        <div aria-hidden="true" className="absolute right-24 top-7 size-36 rounded-full border border-primary/10" />
 
-        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <div className="relative z-10 flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-[#d7f99d]">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-secondary px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-secondary-foreground">
               <Sparkles className="size-3.5" />
-              Réglages du studio
+              Le studio, en mieux
             </div>
-            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-4xl">
-              Votre espace, <span className="text-[#c4f264]">vos règles.</span>
+            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-4xl">
+              Un espace <span className="text-gradient-lime-simple">à votre image.</span>
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
-              Façonnez un studio qui vous ressemble, connectez vos réseaux et gardez tout à portée de main.
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+              Personnalisez votre studio, reliez vos réseaux et gardez vos préférences au même endroit.
             </p>
           </div>
 
-          <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3 sm:min-w-[320px]">
-            <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/10 ring-1 ring-white/10">
+          <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm sm:min-w-[320px]">
+            <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-secondary ring-1 ring-border/70">
               {user?.imageUrl ? (
                 <Image
                   src={user.imageUrl}
@@ -48,15 +47,15 @@ const SettingsPage = () => {
                   height={44}
                 />
               ) : (
-                <User className="size-5 text-white/65" />
+                <User className="size-5 text-secondary-foreground/70" />
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">Compte Lemon.ai</p>
-              <p className="mt-1 truncate text-sm font-bold text-white">{user?.fullName || "Mon compte"}</p>
-              <p className="truncate text-xs text-white/50">{user?.primaryEmailAddress?.emailAddress || "Profil en cours de chargement"}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Compte Lemon.ai</p>
+              <p className="mt-1 truncate text-sm font-bold text-foreground">{user?.fullName || "Mon compte"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user?.primaryEmailAddress?.emailAddress || "Profil en cours de chargement"}</p>
             </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[#c4f264]" aria-hidden="true">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground" aria-hidden="true">
               <ShieldCheck className="size-4" />
             </div>
           </div>
@@ -64,17 +63,17 @@ const SettingsPage = () => {
       </header>
 
       <Tabs defaultValue="channels" className="gap-0">
-        <div className="mb-5 border-b border-border/70">
-          <TabsList variant="line" className="h-auto w-full justify-start gap-1 overflow-x-auto bg-transparent p-0 sm:w-fit">
-            <TabsTrigger value="profile" className="h-12 flex-none gap-2 rounded-none px-3 text-xs font-semibold sm:px-4">
+        <div className="mb-5 w-full overflow-x-auto">
+          <TabsList className="h-auto w-full justify-start gap-1.5 rounded-2xl border border-border/70 bg-card/80 p-1.5 shadow-sm sm:w-fit">
+            <TabsTrigger value="profile" className="h-10 flex-none gap-2 rounded-xl border border-transparent px-4 text-xs font-semibold transition-all data-active:border-primary/15 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm">
               <User className="size-4" />
               Profil
             </TabsTrigger>
-            <TabsTrigger value="channels" className="h-12 flex-none gap-2 rounded-none px-3 text-xs font-semibold sm:px-4">
+            <TabsTrigger value="channels" className="h-10 flex-none gap-2 rounded-xl border border-transparent px-4 text-xs font-semibold transition-all data-active:border-primary/15 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm">
               <Layers className="size-4" />
               Canaux
             </TabsTrigger>
-            <TabsTrigger value="appearance" className="h-12 flex-none gap-2 rounded-none px-3 text-xs font-semibold sm:px-4">
+            <TabsTrigger value="appearance" className="h-10 flex-none gap-2 rounded-xl border border-transparent px-4 text-xs font-semibold transition-all data-active:border-primary/15 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm">
               <Palette className="size-4" />
               Apparence
             </TabsTrigger>
@@ -82,7 +81,7 @@ const SettingsPage = () => {
         </div>
 
         <TabsContent value="profile" className="mt-5">
-          <Card className="overflow-hidden rounded-[28px] border-border/70 bg-card shadow-[0_18px_50px_rgba(33,52,24,0.06)]">
+          <Card className="overflow-hidden rounded-[28px] border-border/70 bg-card shadow-sm">
             <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-transparent to-transparent p-5 sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -135,7 +134,7 @@ const SettingsPage = () => {
 
         <TabsContent value="appearance" className="mt-5">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
-            <Card className="overflow-hidden rounded-[28px] border-border/70 bg-card shadow-[0_18px_50px_rgba(33,52,24,0.06)]">
+            <Card className="overflow-hidden rounded-[28px] border-border/70 bg-card shadow-sm">
               <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-transparent to-transparent p-5 sm:p-6">
                 <CardTitle>Apparence</CardTitle>
                 <CardDescription className="mt-1">Choisissez l&apos;ambiance de votre espace de travail.</CardDescription>
@@ -166,17 +165,17 @@ const SettingsPage = () => {
                     "rounded-2xl border p-3 transition-colors",
                     !isDark ? "border-primary/50 bg-primary/5" : "border-border/70 bg-background/60",
                   )}>
-                    <div aria-hidden="true" className="rounded-xl border border-[#e4e8df] bg-white p-3">
+                    <div aria-hidden="true" className="rounded-xl border border-[#e8e0e6] bg-[#fffdf8] p-3">
                       <div className="flex gap-1.5">
-                        <span className="size-2 rounded-full bg-[#a3e635]" />
-                        <span className="size-2 rounded-full bg-[#e4e8df]" />
-                        <span className="size-2 rounded-full bg-[#e4e8df]" />
+                        <span className="size-2 rounded-full bg-[#6749d7]" />
+                        <span className="size-2 rounded-full bg-[#e8e0e6]" />
+                        <span className="size-2 rounded-full bg-[#e8e0e6]" />
                       </div>
                       <div className="mt-3 grid grid-cols-[32px_1fr] gap-2">
-                        <div className="h-9 rounded-md bg-[#f0f4eb]" />
+                        <div className="h-9 rounded-md bg-[#f1ede5]" />
                         <div className="flex flex-col gap-1.5 pt-1">
-                          <span className="h-1.5 w-3/4 rounded-full bg-[#dfe7d8]" />
-                          <span className="h-1.5 w-1/2 rounded-full bg-[#edf1e9]" />
+                          <span className="h-1.5 w-3/4 rounded-full bg-[#e8e0e6]" />
+                          <span className="h-1.5 w-1/2 rounded-full bg-[#f1ede5]" />
                         </div>
                       </div>
                     </div>
@@ -193,9 +192,9 @@ const SettingsPage = () => {
                     "rounded-2xl border p-3 transition-colors",
                     isDark ? "border-primary/50 bg-primary/5" : "border-border/70 bg-background/60",
                   )}>
-                    <div aria-hidden="true" className="rounded-xl border border-white/10 bg-[#11190f] p-3">
+                    <div aria-hidden="true" className="rounded-xl border border-[#403746] bg-[#17141b] p-3">
                       <div className="flex gap-1.5">
-                        <span className="size-2 rounded-full bg-[#c4f264]" />
+                        <span className="size-2 rounded-full bg-[#eff669]" />
                         <span className="size-2 rounded-full bg-white/15" />
                         <span className="size-2 rounded-full bg-white/15" />
                       </div>
@@ -219,22 +218,22 @@ const SettingsPage = () => {
               </CardContent>
             </Card>
 
-            <aside className="relative isolate overflow-hidden rounded-[28px] border border-[#25351f] bg-[#11190f] p-6 text-white shadow-[0_18px_50px_rgba(27,48,18,0.14)] sm:p-7">
-              <div aria-hidden="true" className="absolute -right-10 -top-12 size-56 rounded-full border border-primary/15" />
-              <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_100%_0%,rgba(196,242,100,0.15),transparent_54%)]" />
+            <aside className="relative isolate overflow-hidden rounded-[28px] bg-primary p-6 text-primary-foreground shadow-lg sm:p-7">
+              <div aria-hidden="true" className="absolute -right-10 -top-12 size-56 rounded-full border border-primary-foreground/15" />
+              <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_100%_0%,rgba(255,255,255,0.15),transparent_54%)]" />
               <div className="relative z-10">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/15 text-[#c4f264] ring-1 ring-primary/20">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-foreground/10 text-primary-foreground ring-1 ring-primary-foreground/15">
                   <Palette className="size-5" />
                 </div>
-                <p className="mt-5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-[#d7f99d]">Une ambiance qui vous suit</p>
+                <p className="mt-5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-primary-foreground/70">Une ambiance qui vous suit</p>
                 <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-[-0.04em]">
-                  Clair le jour, <span className="text-[#c4f264]">profond la nuit.</span>
+                  Clair le jour, <span className="text-primary-foreground/70">profond la nuit.</span>
                 </h2>
-                <p className="mt-3 text-sm leading-6 text-white/60">
+                <p className="mt-3 text-sm leading-6 text-primary-foreground/75">
                   Votre préférence s&apos;applique à tout le studio et reste enregistrée pour vos prochaines visites.
                 </p>
-                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-semibold text-white/65">
-                  <span className="size-2 rounded-full bg-[#c4f264]" />
+                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/15 bg-primary-foreground/10 px-3 py-2 text-[10px] font-semibold text-primary-foreground/80">
+                  <span className="size-2 rounded-full bg-primary-foreground" />
                   Thème {isDark ? "sombre" : "clair"} actif
                 </div>
               </div>

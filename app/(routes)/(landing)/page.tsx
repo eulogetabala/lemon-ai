@@ -324,12 +324,12 @@ export default function LandingPage() {
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -top-40 left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-primary/8 blur-[120px]" />
             <div className="absolute -left-32 top-40 h-72 w-72 rounded-full bg-[#c4b5fd]/6 blur-[100px]" />
-            <div className="absolute -right-32 top-40 h-72 w-72 rounded-full bg-[#7dd3fc]/6 blur-[100px]" />
+            <div className="absolute -right-32 top-40 h-72 w-72 rounded-full bg-[#ff8974]/8 blur-[100px]" />
           </div>
 
           {/* Dot grid */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.15] dark:opacity-[0.08]
-            [background-image:radial-gradient(rgba(163,230,53,0.4)_1px,transparent_1px)]
+            [background-image:radial-gradient(rgba(180,155,255,0.4)_1px,transparent_1px)]
             [background-size:48px_48px]" />
 
           {/* Fade edges */}
@@ -376,7 +376,7 @@ export default function LandingPage() {
             {/* Hero content */}
             <div className="z-10 mx-auto flex max-w-4xl flex-1 flex-col items-center justify-center text-center gap-6">
               <Reveal>
-                <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-sm text-primary/90 shadow-[0_0_20px_rgba(163,230,53,0.08)]">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-sm text-primary/90 shadow-[0_0_20px_rgba(112,82,226,0.08)]">
                   <Zap className="h-3.5 w-3.5 fill-current" />
                   <span className="font-medium">Planifiez smarter, publiez partout</span>
                 </div>

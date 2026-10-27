@@ -147,26 +147,33 @@ export default function ScheduleHistoryPage() {
   }, [filteredPosts]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Archive</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Historique des publications</h1>
-        </div>
+    <div className="mx-auto w-full max-w-6xl space-y-6">
+      <header className="relative isolate overflow-hidden rounded-[32px] border border-border/70 bg-card p-5 shadow-sm sm:p-7">
+        <div aria-hidden="true" className="absolute -right-10 -top-20 size-64 rounded-full bg-accent/25 blur-3xl" />
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-secondary px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-secondary-foreground">
+              <History className="size-3.5" />
+              Archive éditoriale
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-[-0.045em] text-foreground sm:text-4xl">Tout ce qui est déjà parti.</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Retrouvez, filtrez et exportez vos publications passées.</p>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/schedule">
-              <ArrowLeft className="size-4" />
-              Retour au planning
-            </Link>
-          </Button>
-          <Button onClick={() => exportToCsv(filteredPosts)} variant="secondary" disabled={filteredPosts.length === 0}>
-            <Download className="size-4" />
-            Export CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" className="rounded-xl border-border/80 bg-background/80">
+              <Link href="/schedule">
+                <ArrowLeft className="size-4" />
+                Retour au planning
+              </Link>
+            </Button>
+            <Button onClick={() => exportToCsv(filteredPosts)} variant="secondary" className="rounded-xl" disabled={filteredPosts.length === 0}>
+              <Download className="size-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="grid gap-3 md:grid-cols-4">
         <Card>

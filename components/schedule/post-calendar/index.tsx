@@ -188,7 +188,7 @@ export function PostCalendar({
                   <div className="group flex items-center justify-between w-full">
                     <span className={cn(
                       "flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium",
-                      isCellToday ? "bg-primary font-bold text-primary-foreground shadow-[0_5px_14px_rgba(163,230,53,0.32)]" : isPastDate ? "text-muted-foreground/60" : "text-foreground"
+                      isCellToday ? "bg-primary font-bold text-primary-foreground shadow-sm" : isPastDate ? "text-muted-foreground/60" : "text-foreground"
                     )}>
                       {label}
                     </span>

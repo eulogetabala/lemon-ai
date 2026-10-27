@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { Activity, ArrowUpRight, Eye, Plus, Sparkles, Trash2, TrendingUp, TrendingDown, Users, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -111,7 +110,7 @@ function AddCompetitorDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button id="add-competitor-btn" className="h-10 gap-2 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground shadow-[0_8px_24px_rgba(163,230,53,0.18)] hover:-translate-y-0.5 hover:bg-primary">
+        <Button id="add-competitor-btn" className="h-10 gap-2 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground shadow-md hover:-translate-y-0.5">
           <Plus className="size-3.5" />
           Ajouter un concurrent
         </Button>
@@ -214,14 +213,14 @@ function CompetitorCard({
 
   return (
     <Link href={`/competitor-watch/${competitor.id}`} className="group block h-full">
-      <article className="group relative h-full overflow-hidden rounded-3xl border border-border/75 bg-card p-5 shadow-[0_14px_38px_rgba(33,52,24,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_48px_rgba(33,52,24,0.12)]">
+      <article className="group relative h-full overflow-hidden rounded-3xl border border-border/75 bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/20 via-primary to-transparent opacity-80" />
         <div className="absolute inset-x-0 top-1 h-20 bg-gradient-to-b from-primary/[0.08] to-transparent" />
 
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <Avatar className="size-10 shrink-0 ring-2 ring-white/8">
-              <AvatarFallback className="bg-gradient-to-br from-primary to-[#84cc16] text-sm font-bold text-primary-foreground">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-chart-3 text-sm font-bold text-primary-foreground">
                 {competitor.name.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -287,7 +286,7 @@ function CompetitorCard({
             <span
               className={cn(
                 "inline-flex items-center gap-0.5 font-semibold tabular-nums",
-                totals.change >= 0 ? "text-emerald-400" : "text-destructive",
+                totals.change >= 0 ? "text-chart-4" : "text-destructive",
               )}
             >
               {totals.change >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
@@ -346,52 +345,68 @@ export default function CompetitorWatchPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-5">
-      <header className="relative isolate overflow-hidden rounded-[30px] border border-[#25351f] bg-[#11190f] p-5 text-white shadow-[0_22px_60px_rgba(27,48,18,0.14)] sm:px-7 sm:py-6">
-        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_12%_0%,rgba(196,242,100,0.16),transparent_48%)]" />
-        <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[46%] md:block">
-          <Image src="/images/lemon-orbit.png" alt="" fill sizes="(max-width: 768px) 0px, 42vw" className="object-cover object-right opacity-70 mix-blend-screen" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#11190f] via-[#11190f]/50 to-transparent" />
-        </div>
-        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-[#d7f99d]">
-              <Eye className="size-3.5" />
-              Veille intelligente
+      <header className="relative isolate overflow-hidden rounded-[32px] border border-border/70 bg-card shadow-sm">
+        <div aria-hidden="true" className="absolute -right-20 -top-28 size-80 rounded-full bg-accent/30 blur-3xl" />
+        <div className="relative grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(220px,290px)] lg:items-stretch">
+          <div className="flex min-w-0 flex-col justify-between gap-5">
+            <div className="max-w-2xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-secondary px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-secondary-foreground">
+                <Eye className="size-3.5" />
+                Veille intelligente
+              </div>
+              <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-4xl">
+                Voyez ce qui <span className="text-gradient-lime-simple">fait du bruit.</span>
+              </h1>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                Les signaux importants de votre marché, réunis au même endroit. Observez les contenus, les audiences et les tendances qui accélèrent.
+              </p>
             </div>
-            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-4xl">
-              Voyez ce qui <span className="text-[#c4f264]">fait du bruit.</span>
-            </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
-              Les signaux importants de votre marché, réunis au même endroit. Observez les contenus, les audiences et les tendances qui accélèrent.
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em]">
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-white/75">
-                {isLoading ? "Synchronisation…" : `${competitors.length} marque${competitors.length > 1 ? "s" : ""} suivie${competitors.length > 1 ? "s" : ""}`}
-              </span>
-              {totalFollowers > 0 && <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-white/55">{formatNumber(totalFollowers)} abonnés observés</span>}
+
+            <div className="flex flex-wrap items-center gap-2">
+              {competitors.length > 0 && (
+                <div className="relative min-w-[190px] flex-1 sm:flex-none">
+                  <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="competitor-search"
+                    placeholder="Chercher une marque…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="h-10 w-full rounded-xl border-border/80 bg-background/80 pl-10 pr-9 text-xs placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-primary/30"
+                  />
+                  {search && (
+                    <button type="button" aria-label="Effacer la recherche" onClick={() => setSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                      <X className="size-3.5 text-muted-foreground hover:text-foreground" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <AddCompetitorDialog onAdd={handleAdd} />
             </div>
           </div>
 
-          <div className="relative flex flex-wrap items-center gap-2 lg:max-w-[350px] lg:justify-end">
-            {competitors.length > 0 && (
-              <div className="relative min-w-[190px] flex-1 lg:flex-none">
-                <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-white/45" />
-                <Input
-                  id="competitor-search"
-                  placeholder="Chercher une marque…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-10 w-full rounded-xl border-white/15 bg-white/[0.07] pl-10 pr-9 text-xs text-white placeholder:text-white/40 focus-visible:border-primary/50 focus-visible:ring-primary/30"
-                />
-                {search && (
-                  <button type="button" aria-label="Effacer la recherche" onClick={() => setSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                    <X className="size-3.5 text-white/45 hover:text-white" />
-                  </button>
-                )}
+          <aside className="relative flex flex-col justify-between overflow-hidden rounded-[26px] border border-border/70 bg-secondary/65 p-5">
+            <div aria-hidden="true" className="absolute -right-8 -top-10 size-36 rounded-full bg-chart-1/15 blur-2xl" />
+            <div className="relative flex items-center justify-between gap-3">
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-secondary-foreground/70">Votre radar</span>
+              <Activity className="size-4 text-primary" />
+            </div>
+            <div className="relative mt-6 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-border/70 bg-background/75 p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Marques</p>
+                <p className="mt-2 text-2xl font-extrabold tabular-nums text-foreground">{isLoading ? "—" : competitors.length}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">sous observation</p>
               </div>
-            )}
-            <AddCompetitorDialog onAdd={handleAdd} />
-          </div>
+              <div className="rounded-2xl border border-border/70 bg-background/75 p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Audience</p>
+                <p className="mt-2 text-2xl font-extrabold tabular-nums text-foreground">{isLoading ? "—" : formatNumber(totalFollowers)}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">abonnés suivis</p>
+              </div>
+            </div>
+            <div className="relative mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+              <span className="size-2 rounded-full bg-chart-4" />
+              <span>{isLoading ? "Synchronisation" : "Radar prêt"}</span>
+            </div>
+          </aside>
         </div>
       </header>
 
@@ -404,7 +419,7 @@ export default function CompetitorWatchPage() {
           </div>
         ) : competitors.length === 0 ? (
           <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="relative overflow-hidden rounded-[28px] border border-border/70 bg-card p-6 shadow-[0_16px_42px_rgba(33,52,24,0.06)] sm:p-8">
+            <div className="relative overflow-hidden rounded-[28px] border border-border/70 bg-card p-6 shadow-sm sm:p-8">
               <div aria-hidden="true" className="absolute -right-10 -top-12 size-52 rounded-full bg-primary/10 blur-3xl" />
               <div className="relative max-w-xl">
                 <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/15 text-accent-foreground ring-1 ring-primary/20">
@@ -425,15 +440,15 @@ export default function CompetitorWatchPage() {
 
             <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
               <div className="flex items-start gap-3 rounded-3xl border border-border/70 bg-card/75 p-4 shadow-sm">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf5db] text-[#5b8926]"><Activity className="size-4" /></div>
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-chart-4/15 text-chart-4"><Activity className="size-4" /></div>
                 <div><h3 className="text-sm font-bold">Ce qui progresse</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">Repérez les mouvements d&apos;audience et les variations d&apos;engagement.</p></div>
               </div>
               <div className="flex items-start gap-3 rounded-3xl border border-border/70 bg-card/75 p-4 shadow-sm">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f0eaff] text-[#7155ae]"><Sparkles className="size-4" /></div>
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-chart-5/15 text-chart-5"><Sparkles className="size-4" /></div>
                 <div><h3 className="text-sm font-bold">Ce qui résonne</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">Observez les formats et les messages qui captent l&apos;attention.</p></div>
               </div>
               <div className="flex items-start gap-3 rounded-3xl border border-border/70 bg-card/75 p-4 shadow-sm">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#fff0e3] text-[#b16e35]"><ArrowUpRight className="size-4" /></div>
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-chart-3/15 text-chart-3"><ArrowUpRight className="size-4" /></div>
                 <div><h3 className="text-sm font-bold">La prochaine occasion</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">Transformez vos observations en idées de contenu pertinentes.</p></div>
               </div>
             </div>

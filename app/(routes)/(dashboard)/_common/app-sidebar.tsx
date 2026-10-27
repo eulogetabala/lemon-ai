@@ -16,7 +16,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { Calendar, CreditCard, Lightbulb, Plus, PlusCircleIcon, Settings, TrendingUp } from 'lucide-react';
+import { Calendar, CircleAlert, CreditCard, Lightbulb, Plus, PlusCircleIcon, Settings, TrendingUp } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import Logo from '@/components/logo';
 import { Button } from '@/components/ui/button';
@@ -68,12 +68,12 @@ const AppSidebar = () => {
     }
   })
 
-  const { data: channelsData, isPending } = useQuery({
+  const { data: channelsData, isPending, isError } = useQuery({
     queryKey: ["channels"],
     queryFn: async () => {
       const res = await fetch("/api/channel");
-      const data = await res.json();
-      return data
+      if (!res.ok) throw new Error("Impossible de charger les canaux");
+      return res.json();
     }
   })
 
@@ -100,7 +100,7 @@ const AppSidebar = () => {
 
           <Button
             className={cn(
-              "mt-5 h-11 w-full justify-start gap-2.5 rounded-2xl bg-gradient-to-r from-[#c4f264] to-[#9bd83c] font-bold tracking-tight text-[#17200f] shadow-[0_10px_26px_rgba(163,230,53,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(163,230,53,0.24)]",
+              "mt-5 h-11 w-full justify-start gap-2.5 rounded-2xl bg-primary font-bold tracking-tight text-primary-foreground shadow-[0_10px_26px_rgba(112,82,226,0.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(112,82,226,0.28)]",
               isCollapsed && "justify-center px-0"
             )}
             size={isCollapsed ? "icon" : "default"}
@@ -126,16 +126,16 @@ const AppSidebar = () => {
                         isActive={isActive}
                         tooltip={item.name}
                         className={cn(
-                          "h-10 rounded-2xl border border-transparent font-medium transition-all duration-200",
+                          "h-10 rounded-2xl border border-transparent font-semibold transition-all duration-200",
                           isActive
-                            ? "border-primary/20 bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(196,242,100,0.06)]"
+                            ? "border-sidebar-primary/20 bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                             : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                         )}
                       >
                         <Link href={item.href} className="flex items-center gap-2.5">
                           <item.icon className={cn(
                             "size-4 shrink-0 transition-colors",
-                            isActive ? "text-primary" : "text-sidebar-foreground/45"
+                            isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/45"
                           )} />
                           <span className='text-sm'>{item.name}</span>
                         </Link>
@@ -153,11 +153,11 @@ const AppSidebar = () => {
           )}
 
           {/* ── Connected Channels ── */}
-          {connectedChannels.length > 0 && (
+          {(isPending || isError || connectedChannels.length > 0) && (
             <SidebarGroup className={cn(isCollapsed && "px-1")}>
               {!isCollapsed && (
-                <SidebarGroupLabel className='text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/35 px-2 mb-1'>
-                  Canaux connectés
+                  <SidebarGroupLabel className='text-[10px] uppercase tracking-[0.18em] font-bold text-sidebar-foreground/40 px-2 mb-1'>
+                  Vos réseaux
                 </SidebarGroupLabel>
               )}
               <SidebarGroupContent>
@@ -166,8 +166,16 @@ const AppSidebar = () => {
                     <div className='flex flex-col gap-1.5 px-1'>
                       <Skeleton className='h-8 w-full bg-sidebar-accent' />
                       <Skeleton className='h-8 w-full bg-sidebar-accent' />
-                      <Skeleton className='h-8 w-full bg-sidebar-accent' />
                     </div>
+                  ) : isError ? (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild className="h-9 rounded-xl text-sidebar-foreground/65 hover:bg-sidebar-accent">
+                        <Link href="/settings" className="flex items-center gap-2.5">
+                          <CircleAlert className="size-4 shrink-0 text-chart-3" />
+                          {!isCollapsed && <span className="truncate text-xs">Canaux indisponibles</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                   ) : (
                     connectedChannels?.map((channel: ChannelType) => {
                       const profileUrl = buildChannelProfileUrl(channel.type, channel.handle, channel.profile_url)
@@ -193,7 +201,7 @@ const AppSidebar = () => {
                                     profileImage={channel.profile_image}
                                     name=""
                                   />
-                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-emerald-400 ring-[1.5px] ring-sidebar animate-status-pulse" />
+                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-chart-4 ring-[1.5px] ring-sidebar animate-status-pulse" />
                                 </div>
                                 {!isCollapsed && (
                                   <span className="truncate text-sm text-sidebar-foreground/80">
@@ -211,7 +219,7 @@ const AppSidebar = () => {
                                     profileImage={channel.profile_image}
                                     name=""
                                   />
-                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-emerald-400 ring-[1.5px] ring-sidebar animate-status-pulse" />
+                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-chart-4 ring-[1.5px] ring-sidebar animate-status-pulse" />
                                 </div>
                                 {!isCollapsed && (
                                   <span className="truncate text-sm text-sidebar-foreground/80">
@@ -313,15 +321,16 @@ const AppSidebar = () => {
             <div className="mb-2 px-2">
               <div className="flex items-center justify-between text-[10px] text-sidebar-foreground/35 mb-1">
                 <span className="uppercase tracking-widest font-semibold">Canaux</span>
-                <span>{connectedCount}/{totalChannels}</span>
+                <span>{isError ? "Indisponible" : totalChannels > 0 ? `${connectedCount}/${totalChannels}` : "0/0"}</span>
               </div>
-              {/* Progress bar */}
-              <div className="h-1 w-full rounded-full bg-sidebar-accent overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-[#84cc16] transition-all duration-500"
-                  style={{ width: totalChannels > 0 ? `${(connectedCount / totalChannels) * 100}%` : '0%' }}
-                />
-              </div>
+              {!isError && totalChannels > 0 && (
+                <div className="h-1 w-full overflow-hidden rounded-full bg-sidebar-accent">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-chart-3 transition-all duration-500"
+                    style={{ width: `${(connectedCount / totalChannels) * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
