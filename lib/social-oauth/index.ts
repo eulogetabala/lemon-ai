@@ -490,7 +490,7 @@ export function buildOAuthRedirectUri(
 ) {
   const isProduction = process.env.NODE_ENV === "production"
   const base = (
-    isProduction ? appUrl || requestOrigin : requestOrigin || appUrl || ""
+    isProduction ? appUrl || requestOrigin || "" : requestOrigin || appUrl || ""
   ).replace(/\/+$/, "")
   return `${base}/api/channel/callback`
 }

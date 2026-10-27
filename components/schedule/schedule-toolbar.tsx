@@ -22,7 +22,7 @@ interface ScheduleToolbarProps {
   channelIds: string[];
   toggleChannel: (id: string) => void;
   selectedStatus: string;
-  setSelectedStatus: (status: string | any) => void;
+  setSelectedStatus: (status: string) => void;
 }
 
 const statusOptions = [
@@ -57,7 +57,7 @@ const ScheduleToolbar = ({
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="lg" className="h-8 gap-1">
+            <Button variant="ghost" size="lg" className="h-9 gap-2 rounded-xl border border-border/70 bg-card/85 px-3 text-foreground shadow-sm hover:bg-muted">
               <Copy className="h-3.5 w-3.5" />
               <span className="font-medium text-sm text-muted-foreground!">
                 {statusOptions.find((s) => s.id === selectedStatus)?.label || "Toutes les publications"}
@@ -91,7 +91,7 @@ const ScheduleToolbar = ({
       {/* Channels Filter */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="lg" className="h-8 gap-1">
+          <Button variant="ghost" size="lg" className="h-9 gap-2 rounded-xl border border-border/70 bg-card/85 px-3 text-foreground shadow-sm hover:bg-muted">
             <LayoutGrid className="h-3.5 w-3.5" />
             <span className="font-medium text-sm text-muted-foreground!">
               Canaux

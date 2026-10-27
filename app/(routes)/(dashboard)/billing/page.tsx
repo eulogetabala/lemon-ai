@@ -2,9 +2,7 @@
 
 import { useState } from "react"
 import { Check, Zap, Rocket, Building2, Star } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 type BillingInterval = "monthly" | "yearly"
 
@@ -107,79 +105,81 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="w-full max-w-5xl px-4 py-6 mx-auto">
-      {/* Header */}
-      <div className="mb-10 text-center">
-        <h1 className="text-2xl font-bold tracking-tight mb-1.5 text-foreground">
-          Facturation et offres
-        </h1>
-        <p className="text-sm text-foreground/45 max-w-md mx-auto">
-          Choisissez l’offre adaptée à vos besoins. Passez à une offre supérieure, inférieure ou annulez à tout moment.
-        </p>
+    <div className="mx-auto w-full max-w-[1500px]">
+      <header className="relative isolate mb-7 overflow-hidden rounded-[30px] border border-[#25351f] bg-[#11190f] px-5 py-6 text-white shadow-[0_22px_60px_rgba(27,48,18,0.14)] sm:px-8 sm:py-8">
+        <div aria-hidden="true" className="absolute -right-10 -top-28 size-80 rounded-full border border-primary/15" />
+        <div aria-hidden="true" className="absolute -right-2 -top-20 size-64 rounded-full border border-white/[0.08]" />
+        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_90%_0%,rgba(196,242,100,0.16),transparent_45%)]" />
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="mb-3 text-[9px] font-extrabold uppercase tracking-[0.22em] text-[#d7f99d]">Lemon, à votre rythme</p>
+            <h1 className="text-3xl font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-4xl">
+              Grandissez <span className="text-[#c4f264]">sans changer de cadence.</span>
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
+              Des outils pour chaque étape de votre présence sociale. Changez d&apos;offre quand vous le souhaitez.
+            </p>
+          </div>
 
-        {/* Interval toggle */}
-        <div className="mt-6 inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-1">
-          <button
-            onClick={() => setInterval("monthly")}
-            className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-              interval === "monthly"
-                ? "bg-foreground text-background shadow-sm"
-                : "text-foreground/45 hover:text-foreground/70"
-            }`}
-          >
-            Mensuel
-          </button>
-          <button
-            onClick={() => setInterval("yearly")}
-            className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-2 ${
-              interval === "yearly"
-                ? "bg-foreground text-background shadow-sm"
-                : "text-foreground/45 hover:text-foreground/70"
-            }`}
-          >
-            Annuel
-            <span className="text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">
-              –20 %
-            </span>
-          </button>
+          <div className="shrink-0">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">Facturation</p>
+            <div className="inline-flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.06] p-1">
+              <button
+                type="button"
+                aria-pressed={interval === "monthly"}
+                onClick={() => setInterval("monthly")}
+                className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${interval === "monthly" ? "bg-[#c4f264] text-[#17200f] shadow-sm" : "text-white/65 hover:text-white"}`}
+              >
+                Mensuel
+              </button>
+              <button
+                type="button"
+                aria-pressed={interval === "yearly"}
+                onClick={() => setInterval("yearly")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${interval === "yearly" ? "bg-[#c4f264] text-[#17200f] shadow-sm" : "text-white/65 hover:text-white"}`}
+              >
+                Annuel
+                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-extrabold text-[#d7f99d]">−20 %</span>
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Plans grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const Icon = plan.icon
           return (
             <div
               key={plan.id}
-              className={`relative flex flex-col rounded-2xl border p-1 transition-all duration-300 ${
+              className={`relative flex flex-col rounded-[26px] border p-1.5 transition-all duration-300 ${
                 plan.highlight
-                  ? "border-primary/40 glow-lime animate-border-glow"
-                  : "border-white/[0.08] hover:-translate-y-1"
+                  ? "border-primary/55 bg-primary/10 shadow-[0_20px_55px_rgba(120,170,45,0.16)]"
+                  : "border-border/70 bg-card shadow-[0_14px_38px_rgba(33,52,24,0.05)] hover:-translate-y-1 hover:border-primary/35 hover:shadow-lg"
               }`}
             >
               {/* Inner surface */}
-              <div className={`flex flex-col flex-1 rounded-xl p-5 ${
+              <div className={`flex flex-1 flex-col rounded-[22px] p-5 ${
                 plan.highlight
-                  ? "bg-gradient-to-b from-primary/[0.07] to-transparent"
-                  : "dark:bg-[#0d1526]/60 bg-card"
+                  ? "bg-gradient-to-b from-primary/15 via-card to-card"
+                  : "bg-card"
               }`}>
 
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary-foreground shadow-[0_0_12px_rgba(163,230,53,0.4)]">
+                  <span className="inline-flex items-center rounded-full bg-[#c4f264] px-3 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-[#17200f] shadow-[0_8px_24px_rgba(163,230,53,0.28)]">
                     {plan.badge}
                   </span>
                 </div>
               )}
 
               {/* Plan icon */}
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${
+              <div className={`mb-4 flex size-11 items-center justify-center rounded-2xl ${
                 plan.highlight
-                  ? "bg-primary/15 ring-1 ring-primary/30"
-                  : "bg-white/[0.05] ring-1 ring-white/[0.08]"
+                  ? "bg-primary/20 ring-1 ring-primary/35"
+                  : "bg-muted ring-1 ring-border/70"
               }`}>
-                <Icon className={`size-5 ${plan.highlight ? "text-primary" : "text-foreground/40"}`} />
+                <Icon className={`size-5 ${plan.highlight ? "text-accent-foreground" : "text-muted-foreground"}`} />
               </div>
 
               <h3 className="text-sm font-bold tracking-tight text-foreground/90">{plan.name}</h3>
@@ -208,7 +208,7 @@ export default function BillingPage() {
               </div>
 
               {/* Features */}
-              <ul className="space-y-2.5 flex-1">
+              <ul className="flex-1 space-y-3">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-xs">
                     <div className="mt-0.5 size-4 shrink-0 rounded-full bg-primary/15 flex items-center justify-center">
@@ -219,8 +219,8 @@ export default function BillingPage() {
                 ))}
               </ul>
 
-              <Button
-                className={`w-full mt-5 rounded-full h-9 text-xs font-semibold`}
+                <Button
+                className={`mt-6 h-11 w-full rounded-2xl text-xs font-bold`}
                 variant={plan.highlight ? "default" : "outline"}
                 disabled={plan.disabled}
                 onClick={() => {
@@ -238,7 +238,7 @@ export default function BillingPage() {
       </div>
 
       {/* Footer note */}
-      <p className="text-center text-xs text-foreground/30 mt-8">
+      <p className="mt-7 text-center text-xs leading-6 text-muted-foreground">
         Toutes les offres incluent un essai gratuit de 14 jours. Aucune carte bancaire requise pour commencer.
         Des questions ?{" "}
         <a href="mailto:support@lemonai.app" className="underline underline-offset-2 hover:text-foreground/60 transition-colors">

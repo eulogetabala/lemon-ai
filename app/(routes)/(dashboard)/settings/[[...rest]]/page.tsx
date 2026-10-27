@@ -13,18 +13,20 @@ const SettingsPage = () => {
   const { user } = useUser()
   const { theme, setTheme } = useTheme()
   return (
-    <div className="w-full">
-      <div className="max-w-5xl mx-auto w-full h-full">
-        <div className="py-4">
-          <h1 className="text-xl font-semibold">Paramètres</h1>
+    <div className="mx-auto w-full max-w-[1200px]">
+      <header className="mb-6">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.2em] text-accent-foreground">
+          <Palette className="size-3.5" />
+          Personnalisez votre studio
         </div>
+        <h1 className="text-3xl font-extrabold tracking-[-0.045em] text-foreground sm:text-4xl">Votre espace, <span className="text-primary">vos règles.</span></h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Gérez votre profil, vos connexions sociales et l&apos;ambiance de votre espace de travail.</p>
+      </header>
 
-        <div>
+      <div>
           <Tabs defaultValue="channels">
-            <div className="mb-6 w-full border-b">
-              <TabsList variant="line" className="w-fit space-x-4
-              group-data-horizontal/tabs:h-12
-              ">
+            <div className="mb-5 w-full border-b border-border/70">
+              <TabsList variant="line" className="h-12 w-fit gap-2 bg-transparent p-0">
                 <TabsTrigger value="profile">
                   <User className="size-4" />
                   Profil</TabsTrigger>
@@ -38,15 +40,15 @@ const SettingsPage = () => {
             </div>
 
             <TabsContent value="profile">
-              <Card>
-                <CardHeader>
+              <Card className="rounded-[28px] border-border/70 bg-card shadow-[0_18px_50px_rgba(33,52,24,0.06)]">
+                <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-transparent to-transparent p-6">
                   <CardTitle>
                     Votre profil
                   </CardTitle>
                   <CardDescription>Gérez les informations de votre compte</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 rounded-2xl border border-border/70 bg-background/70 p-4">
                     {user?.imageUrl ? (
                       <Image
                         src={user.imageUrl}
@@ -85,17 +87,17 @@ const SettingsPage = () => {
             </TabsContent>
 
             <TabsContent value="appearance">
-              <Card>
-                <CardHeader>
+              <Card className="rounded-[28px] border-border/70 bg-card shadow-[0_18px_50px_rgba(33,52,24,0.06)]">
+                <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-transparent to-transparent p-6">
                   <CardTitle>Apparence</CardTitle>
-                  <CardDescription>Personnalisez l'apparence de Lemon AI</CardDescription>
+                  <CardDescription>Personnalisez l&apos;apparence de Lemon.ai</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="theme">Mode sombre</Label>
+                <CardContent className="space-y-6 p-6">
+                  <div className="flex flex-col gap-5 rounded-2xl border border-border/70 bg-background/75 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <Label htmlFor="theme" className="text-sm font-bold">Mode sombre</Label>
                       <p className="text-sm text-muted-foreground">
-                        Basculer entre le thème clair et le thème sombre
+                        Basculez entre le thème clair et le thème sombre.
                       </p>
                     </div>
                     <Switch
@@ -109,7 +111,6 @@ const SettingsPage = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
     </div>
   )
 }

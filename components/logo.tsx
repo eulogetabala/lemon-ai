@@ -10,19 +10,17 @@ interface LogoProps {
 
 const Logo = ({ name = "Lemon.ai", className, hideName = false }: LogoProps) => {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
+    <div role="img" aria-label={name} className={cn("flex items-center gap-2.5", className)}>
       {/* Icon mark */}
-      <div className="relative flex h-7 w-7 items-center justify-center shrink-0">
-        {/* Outer glow ring */}
-        <div className="absolute inset-0 rounded-xl bg-primary/20 blur-sm" />
-        {/* Main icon container */}
-        <div className="relative flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#84cc16] shadow-[0_0_12px_rgba(163,230,53,0.4)]">
+      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center">
+        <div className="absolute inset-0 rounded-2xl bg-primary/25 blur-md" />
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-[#d7ff83] via-[#b9f24e] to-[#81c929] shadow-[0_8px_24px_rgba(163,230,53,0.28)] ring-1 ring-white/20">
           {/* Lemon emoji-style icon using SVG */}
           <svg
             viewBox="0 0 16 16"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4"
+            className="h-5 w-5"
           >
             <path
               d="M8 2C5.5 2 3 4 3 7.5C3 11 5.5 14 8 14C10.5 14 13 11 13 7.5C13 4 10.5 2 8 2Z"
@@ -47,7 +45,7 @@ const Logo = ({ name = "Lemon.ai", className, hideName = false }: LogoProps) => 
 
       {/* Name */}
       {!hideName && (
-        <span className="text-base font-bold tracking-tight">
+        <span className="text-lg font-extrabold tracking-tight">
           <span className="text-foreground">Lemon</span>
           <span className="text-gradient-lime-simple">.ai</span>
         </span>

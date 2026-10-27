@@ -91,20 +91,17 @@ const AppSidebar = () => {
 
   return (
     <>
-      <Sidebar collapsible="icon">
-        {/* ── Header ── */}
-        <SidebarHeader className={cn("p-4 pb-3", isCollapsed && "p-2")}>
-          <div className='flex items-center justify-between'>
+      <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+        <SidebarHeader className={cn("p-4 pb-5", isCollapsed && "p-2")}>
+          <div className="flex items-center justify-between gap-2">
             <Logo hideName={isCollapsed} />
-            <SidebarTrigger className="hidden md:flex -mx-8 mb-0 hover:bg-sidebar-accent transition-colors" />
+            <SidebarTrigger className="size-8 rounded-xl border border-sidebar-border text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground" />
           </div>
 
-          {/* Create post CTA — premium lime gradient */}
           <Button
             className={cn(
-              'mt-4 w-full rounded-full font-semibold tracking-tight',
-              'btn-primary-glow text-primary-foreground',
-              isCollapsed ? 'size-9 p-0' : 'h-9'
+              "mt-5 h-11 w-full justify-start gap-2.5 rounded-2xl bg-gradient-to-r from-[#c4f264] to-[#9bd83c] font-bold tracking-tight text-[#17200f] shadow-[0_10px_26px_rgba(163,230,53,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(163,230,53,0.24)]",
+              isCollapsed && "justify-center px-0"
             )}
             size={isCollapsed ? "icon" : "default"}
             onClick={() => setIsCreatePostOpen(true)}
@@ -116,11 +113,12 @@ const AppSidebar = () => {
 
         {/* ── Nav Items ── */}
         <SidebarContent className={cn(!isCollapsed && "px-2")}>
-          <SidebarGroup>
+          <SidebarGroup className="px-2 pt-2">
+            {!isCollapsed && <SidebarGroupLabel className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-sidebar-foreground/35">Votre studio</SidebarGroupLabel>}
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className="gap-1">
                 {mainNav.map((item) => {
-                  const isActive = pathname === item.href
+                  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
                   return (
                     <SidebarMenuItem key={item.name}>
                       <SidebarMenuButton
@@ -128,16 +126,16 @@ const AppSidebar = () => {
                         isActive={isActive}
                         tooltip={item.name}
                         className={cn(
-                          "rounded-xl h-9 transition-all duration-200 font-medium",
+                          "h-10 rounded-2xl border border-transparent font-medium transition-all duration-200",
                           isActive
-                            ? "bg-primary/12 text-primary dark:bg-primary/15 dark:text-primary border border-primary/20 shadow-[0_0_12px_rgba(163,230,53,0.08)]"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                            ? "border-primary/20 bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(196,242,100,0.06)]"
+                            : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                         )}
                       >
                         <Link href={item.href} className="flex items-center gap-2.5">
                           <item.icon className={cn(
-                            "size-4 shrink-0",
-                            isActive ? "text-primary" : "text-sidebar-foreground/50"
+                            "size-4 shrink-0 transition-colors",
+                            isActive ? "text-primary" : "text-sidebar-foreground/45"
                           )} />
                           <span className='text-sm'>{item.name}</span>
                         </Link>

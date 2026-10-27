@@ -68,7 +68,7 @@ function StatTile({
   change: number
 }) {
   return (
-    <div className="group rounded-2xl border border-border/80 bg-card/80 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="group rounded-3xl border border-border/70 bg-card p-5 shadow-[0_14px_38px_rgba(33,52,24,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
         <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-primary to-primary/40" />
@@ -101,7 +101,7 @@ function PlatformBlock({
   ]
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/80 shadow-sm backdrop-blur-sm">
+    <div className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-border/80 bg-gradient-to-r from-muted/40 to-transparent px-5 py-3.5">
         <div className="flex items-center gap-2.5">
           <span
@@ -154,7 +154,7 @@ function PlatformBlock({
 function PostRow({ post }: { post: CompetitorPost }) {
   const meta = PLATFORM_META[post.platform]
   return (
-    <div className="flex gap-4 py-4">
+      <div className="flex gap-4 rounded-2xl border border-border/70 bg-background/70 p-4">
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/60">
         {post.mediaUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -286,8 +286,8 @@ export default function CompetitorDetailPage() {
   const totalFollowers = competitor.platforms.reduce((sum, p) => sum + p.followers, 0)
 
   return (
-    <div className="mx-auto w-full max-w-6xl pb-16">
-      <div className="mb-6 pt-4">
+    <div className="mx-auto w-full max-w-[1500px] pb-10">
+        <div className="mb-4">
         <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground hover:text-foreground">
           <Link href="/competitor-watch">
             <ArrowLeft className="size-4" />
@@ -296,9 +296,11 @@ export default function CompetitorDetailPage() {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-border/80 bg-gradient-to-br from-background via-card to-primary/[0.02] shadow-[0_18px_45px_rgba(0,0,0,0.05)]">
-        <div className="border-b border-border/80 bg-gradient-to-r from-primary/6 via-transparent to-primary/10 px-6 py-6 sm:px-8">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+      <div className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_70px_rgba(33,52,24,0.08)]">
+        <div className="relative isolate overflow-hidden border-b border-white/10 bg-[#11190f] px-6 py-6 text-white sm:px-8">
+          <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_18%_0%,rgba(196,242,100,0.16),transparent_50%)]" />
+          <div aria-hidden="true" className="absolute -right-12 -top-28 size-80 rounded-full border border-primary/15" />
+          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="flex min-w-0 flex-1 items-center gap-4">
               <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary/60 text-lg font-bold text-primary-foreground shadow-sm">
                 {competitor.name.slice(0, 2).toUpperCase()}
@@ -306,18 +308,18 @@ export default function CompetitorDetailPage() {
 
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-semibold tracking-tight">{competitor.name}</h1>
+                  <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-white">{competitor.name}</h1>
                   {competitor.verified && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
                       Connecté
                     </span>
                   )}
-                  <Badge variant="secondary" className="rounded-full border border-border/80 bg-background/80 text-xs font-medium">
+                  <Badge variant="secondary" className="rounded-full border border-white/15 bg-white/[0.08] text-xs font-semibold text-white/80">
                     {competitor.industry || "—"}
                   </Badge>
                 </div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/60">
                   {competitor.platforms.map((p) => {
                     const profileUrl = p.profileUrl || buildProfileUrl(p.platform, p.handle)
                     return (
@@ -337,12 +339,12 @@ export default function CompetitorDetailPage() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <Button variant="outline" size="sm" className="rounded-full" onClick={handleSync} disabled={isSyncing}>
+              <Button variant="outline" size="sm" className="rounded-xl border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12]" onClick={handleSync} disabled={isSyncing}>
                 <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
                 {isSyncing ? "Synchronisation…" : "Synchroniser"}
               </Button>
               {competitor.website && (
-                <Button variant="outline" size="sm" asChild className="shrink-0 rounded-full">
+                <Button variant="outline" size="sm" asChild className="shrink-0 rounded-xl border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12]">
                   <a href={competitor.website} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="size-3.5" />
                     Site web
@@ -353,9 +355,9 @@ export default function CompetitorDetailPage() {
           </div>
         </div>
 
-        <div className="space-y-8 px-6 py-6 sm:px-8">
+          <div className="space-y-8 px-4 py-5 sm:px-8 sm:py-7">
           <div className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
-            <div className="rounded-2xl border border-border/80 bg-muted/30 p-4">
+            <div className="rounded-3xl border border-border/70 bg-muted/45 p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Vue d’ensemble</p>
@@ -382,7 +384,7 @@ export default function CompetitorDetailPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/80 bg-card p-4">
+            <div className="rounded-3xl border border-border/70 bg-card p-5">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Période</p>
                 <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted/40 p-1">

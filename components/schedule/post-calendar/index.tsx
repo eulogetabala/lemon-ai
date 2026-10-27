@@ -1,6 +1,6 @@
 "use client"
 import * as React from "react"
-import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar"
+import { Calendar, dateFnsLocalizer, Views, type DateHeaderProps, type ToolbarProps } from "react-big-calendar"
 import { format, parse, startOfWeek, getDay, addHours, isBefore, startOfDay } from "date-fns"
 import { fr } from "date-fns/locale"
 import { ChevronLeft, ChevronRight, Plus, } from "lucide-react"
@@ -24,6 +24,12 @@ const localizer = dateFnsLocalizer({
   locales,
 })
 
+
+type CalendarEvent = PostType & {
+  title: string
+  start: Date
+  end: Date
+}
 
 interface PostCalendarProps {
   posts: PostType[]
@@ -59,39 +65,37 @@ export function PostCalendar({
   )
 
   const formats = React.useMemo(() => ({
-    weekdayFormat: (date: Date, culture?: string, localizer?: any) =>
-      localizer.format(date, 'EEEE', culture),
-
-    dayFormat: (date: Date, culture?: string, localizer?: any) =>
-      localizer.format(date, 'EEEE d', culture),
+    weekdayFormat: (date: Date) => format(date, "EEEE", { locale: fr }),
+    dayFormat: (date: Date) => format(date, "EEEE d", { locale: fr }),
   }), []);
 
   const isWeekView = view === "week"
 
-  const CustomToolbar = (toolbar: any) => {
+  const CustomToolbar = (toolbar: ToolbarProps<CalendarEvent>) => {
     return (
-      <div className="flex flex-col gap-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center border rounded-md overflow-hidden">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none border-r" onClick={() => toolbar.onNavigate('PREV')}>
-                <ChevronLeft className="h-4 w-4" />
+      <div className="mb-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="inline-flex items-center rounded-2xl border border-border/80 bg-background p-1 shadow-sm">
+              <Button variant="ghost" size="icon" aria-label="Mois précédent" className="size-8 rounded-xl text-foreground/70 hover:bg-muted" onClick={() => toolbar.onNavigate('PREV')}>
+                <ChevronLeft className="size-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none" onClick={() => toolbar.onNavigate('NEXT')}>
-                <ChevronRight className="h-4 w-4" />
+              <Button variant="ghost" size="icon" aria-label="Mois suivant" className="size-8 rounded-xl text-foreground/70 hover:bg-muted" onClick={() => toolbar.onNavigate('NEXT')}>
+                <ChevronRight className="size-4" />
               </Button>
             </div>
 
-            <span className="text-base font-semibold">
+            <span className="min-w-[150px] text-lg font-extrabold capitalize tracking-[-0.035em] text-foreground">
               {format(toolbar.date, "MMMM yyyy", { locale: fr })}
             </span>
 
-            <Button variant="outline" size="sm" className="font-medium" onClick={() => toolbar.onNavigate('TODAY')}>
-              Aujourd'hui
+            <Button variant="outline" size="sm" className="h-9 rounded-xl border-border/80 bg-background px-3 text-xs font-bold shadow-sm" onClick={() => toolbar.onNavigate('TODAY')}>
+              Aujourd&apos;hui
             </Button>
 
             <select
-              className="text-sm font-medium bg-transparent border-none focus:ring-0 cursor-pointer outline-none"
+              aria-label="Période du calendrier"
+              className="h-9 cursor-pointer rounded-xl border border-border/80 bg-background px-3 text-xs font-bold text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={view}
               onChange={(e) => onViewChange(e.target.value)}
             >
@@ -100,7 +104,7 @@ export function PostCalendar({
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {rightActions}
           </div>
         </div>
@@ -109,8 +113,8 @@ export function PostCalendar({
   }
 
   return (
-    <div className={cn("h-full relative flex flex-col min-h-[600px] bg-background")}>
-      <Calendar
+    <div className={cn("relative flex h-full min-h-[440px] flex-col")}>
+      <Calendar<CalendarEvent>
         localizer={localizer}
         culture="fr"
         events={events}
@@ -123,7 +127,7 @@ export function PostCalendar({
         onNavigate={onDateChange}
         view={view === "month" ? Views.MONTH : Views.WEEK}
         onView={(v) => onViewChange(v === Views.MONTH ? "month" : "week")}
-        onSelectEvent={(event: any) => onPostClick(event)}
+        onSelectEvent={(event) => onPostClick(event)}
         //onSelectSlot={({ start }) => onCreatePost(start)}
       
         // In week view, disable past time slots 
@@ -134,7 +138,7 @@ export function PostCalendar({
             ? {
               className: "rbc-time-slot-disabled",
               style: {
-                backgroundColor: "hsl(var(--muted) / 0.35)",
+                backgroundColor: "color-mix(in srgb, var(--color-muted) 55%, transparent)",
                 pointerEvents: "none",
               },
             }
@@ -145,13 +149,13 @@ export function PostCalendar({
           const isPastDate = isBefore(date, new Date())
           return {
             className: isPastDate ? "bg-[#331f000f]! pointer-events-none" : "",
-            style: isPastDate ? { backgroundColor: "hsl(var(--muted) / 0.5)" } : {}
+            style: isPastDate ? { backgroundColor: "color-mix(in srgb, var(--color-muted) 78%, transparent)" } : {}
           }
         }}
         components={{
           toolbar: CustomToolbar,
           // Customize event rendering to show channel icons and better styling
-          event: ({ event }) => {
+          event: ({ event }: { event: CalendarEvent }) => {
             const channel = event.user_channels?.channel_types
             const Icon = getChannelIcon(channel?.type || undefined)
             const color = channel?.color || "#000000"
@@ -169,14 +173,14 @@ export function PostCalendar({
                       background: color
                     }} />}
                   <span className="text-xs truncate max-w-[100px]">{event?.title}</span>
-                  <span className="font-semibold">{format(event.scheduled_at, "h:mm a")}</span>
+                  <span className="font-semibold">{format(new Date(event.scheduled_at), "h:mm a")}</span>
                 </div>
               </>
             )
           },
 
           month: {
-            dateHeader: ({ label, date: cellDate }: any) => {
+            dateHeader: ({ label, date: cellDate }: DateHeaderProps) => {
               const isCellToday = format(cellDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
               const isPastDate = isBefore(cellDate, startOfDay(new Date()))
               return (
@@ -184,7 +188,7 @@ export function PostCalendar({
                   <div className="group flex items-center justify-between w-full">
                     <span className={cn(
                       "flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium",
-                      isCellToday ? "bg-green-500 text-white" : isPastDate ? "text-muted-foreground" : "text-foreground"
+                      isCellToday ? "bg-primary font-bold text-primary-foreground shadow-[0_5px_14px_rgba(163,230,53,0.32)]" : isPastDate ? "text-muted-foreground/60" : "text-foreground"
                     )}>
                       {label}
                     </span>

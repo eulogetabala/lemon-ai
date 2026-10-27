@@ -76,9 +76,8 @@ const CalendarView = () => {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden bg-background">
-      <div className="h-[calc(100vh-100px)]">
-        <div className="flex-1 p-6 pt-4 h-full">
+    <div className="min-w-0 overflow-hidden rounded-[28px] border border-border/70 bg-card/85 p-3 shadow-[0_20px_60px_rgba(26,48,18,0.08)] backdrop-blur-sm sm:p-5">
+        <div className="h-[min(70vh,760px)] min-h-[440px]">
           <PostCalendar
             posts={posts}
             isPending={isPending}
@@ -98,8 +97,6 @@ const CalendarView = () => {
             }
           />
         </div>
-      </div>
-
 
       <EditPostDialog
         open={isEditDialogOpen}

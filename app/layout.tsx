@@ -8,16 +8,17 @@ import { QueryProvider } from "@/components/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const plusJakarta = Plus_Jakarta_Sans({
-  variable: "--font-sans",
+  variable: "--font-plus-jakarta",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Lemon.ai | Planification réseaux sociaux",
+  applicationName: "Lemon.ai",
+  title: "Lemon.ai — votre studio social",
   description:
-    "Créez et planifiez vos publications sur tous les réseaux avec l'aide de l'IA. Lemon.ai centralise idées, brouillons et calendrier.",
+    "Donnez vie à vos idées, planifiez vos publications et gardez une longueur d’avance sur les réseaux avec Lemon.ai.",
 };
 
 export default function RootLayout({
@@ -29,14 +30,14 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${plusJakarta.variable} h-full antialiased dark`}
+      className={`${plusJakarta.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         <ClerkProvider>
           <QueryProvider>
             <ThemeProvider
               attribute="class"
-              defaultTheme="dark"
+              defaultTheme="light"
               disableTransitionOnChange
             >
               <TooltipProvider>

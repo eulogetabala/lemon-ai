@@ -1,6 +1,6 @@
 
 "use client"
-import { Suspense,useState, useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -20,7 +20,7 @@ function ChannelTabContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const queryClient = useQueryClient()
-    const [fbPickerOpen, setFbPickerOpen] = useState(false)
+    const fbPickerOpen = searchParams.get("fb_page_select") === "true"
 
     const { data: channelsData, isPending } = useQuery({
         queryKey: ["channels"],
@@ -39,10 +39,7 @@ function ChannelTabContent() {
         const channelType = searchParams.get("channelType")
         const fbPageSelect = searchParams.get("fb_page_select")
 
-        if (fbPageSelect === "true") {
-            setFbPickerOpen(true)
-            return
-        }
+        if (fbPageSelect === "true") return
 
         if (connected === null && !error) return
         queryClient.invalidateQueries({ queryKey: ["channels"] })
@@ -120,16 +117,16 @@ function ChannelTabContent() {
     }
     return (
         <>
-            <Card>
-                <CardHeader>
+            <Card className="overflow-hidden rounded-[28px] border-border/70 bg-card shadow-[0_18px_50px_rgba(33,52,24,0.06)]">
+                <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-transparent to-transparent p-6">
                     <CardTitle>Canaux</CardTitle>
                     <CardDescription>
                         Connectez vos comptes de réseaux sociaux pour commencer à planifier
                     </CardDescription>
                 </CardHeader>
 
-                <CardContent>
-                    <div className='space-y-3'>
+                <CardContent className="space-y-3 p-5 sm:p-6">
+                    <div className="flex flex-col gap-3">
                         {isPending ? (
                             Array.from({ length: 6 }).map((_, index) => (
                                 <div key={index} className='flex items-center justify-between rounded-xl border p-4'>
@@ -150,7 +147,7 @@ function ChannelTabContent() {
 
                                 if (isFacebook && facebookAccounts.length > 0) {
                                     return (
-                                        <div key={channel.id} className='rounded-xl border p-4 space-y-3'>
+                                        <div key={channel.id} className='space-y-3 rounded-2xl border border-border/70 bg-background/70 p-4 transition-colors hover:border-primary/30'>
                                             <div className='flex items-center justify-between'>
                                                 <div className='flex items-center gap-3'>
                                                     <span className='relative'>
@@ -168,7 +165,7 @@ function ChannelTabContent() {
                                                     <span className='font-medium'>{channel.name}</span>
                                                 </div>
 
-                                                <Button size="sm"
+                                                <Button size="sm" className="rounded-xl font-semibold"
                                                     disabled={connectMutation.isPending}
                                                     onClick={() => handleConnect(channel.id!)}
                                                 >
@@ -207,7 +204,7 @@ function ChannelTabContent() {
 
                                 return (
                                     <div key={channel.id}
-                                        className='flex items-center justify-between rounded-xl border p-4'
+                                        className='flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-background/70 p-4 transition-colors hover:border-primary/30'
                                     >
                                         <div className='flex items-center gap-3'>
                                             <span className='relative'>
@@ -236,7 +233,7 @@ function ChannelTabContent() {
                                             <span className='font-medium'>{channel.name}</span>
                                         </div>
 
-                                        <Button variant={channel.connected ? "destructive" : "default"} size="sm"
+                                        <Button variant={channel.connected ? "destructive" : "default"} size="sm" className="rounded-xl font-semibold"
                                             disabled={connectMutation.isPending || disconnectMutation.isPending}
                                             onClick={() => channel.connected ? handleDisconnect(channel.user_channel_id!) : handleConnect(channel.id!)}
                                         >
@@ -256,11 +253,10 @@ function ChannelTabContent() {
 
             <FacebookPagePicker
                 open={fbPickerOpen}
-                onOpenChange={setFbPickerOpen}
-                onSelected={() => {
-                    setFbPickerOpen(false)
-                    router.replace("/settings")
+                onOpenChange={(open) => {
+                    if (!open) router.replace("/settings")
                 }}
+                onSelected={() => router.replace("/settings")}
             />
         </>
     )
