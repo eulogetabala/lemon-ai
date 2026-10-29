@@ -1,49 +1,66 @@
-/* calendar-overrides.css */
-.rbc-calendar { font-family: inherit; border: none !important; }
-.rbc-header {
-  padding: 8px !important;
-  font-weight: 500 !important;
-  font-size: 14px;
-  color: var(--color-muted-foreground);
-  background: var(--color-card);
-  border-bottom: 1px solid var(--color-border) !important;
+/* ------------------------------------------------------------------
+   Overrides react-big-calendar — design « Studio Lemon » botanical
+   Palette : paper / lemon / moss / ink / hairline. Aplats plats, pas de dégradés.
+------------------------------------------------------------------ */
+
+.rbc-calendar {
+  font-family: inherit;
+  border: none !important;
+  height: 100%;
 }
 
-/* .rbc-day-bg[data-past="true"] {
-  background-color: gray !important;
-  opacity: 0.5;
-  pointer-events: none;
-} */
+/* ---------------- En-têtes — tag-code style ---------------- */
+.rbc-header {
+  padding: 8px 6px !important;
+  font-weight: 700 !important;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-hairline) !important;
+}
 
-
-
-
-.rbc-time-header-content .rbc-header{
-  border-bottom:none !important;
+.rbc-time-header-content .rbc-header {
+  border-bottom: none !important;
 }
 
 .rbc-time-view .rbc-row {
-  border:none !important;
+  border: none !important;
   min-height: auto !important;
 }
-.rbc-time-slot  .rbc-label{
-  font-size: 14px;
-  font-weight: 600;
+
+.rbc-time-slot .rbc-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-mute);
 }
 
-.rbc-timeslot-group{
+.rbc-timeslot-group {
   min-height: 44px;
 }
 
-.rbc-month-view, .rbc-week-view, .rbc-time-view {
-  border: 1px solid var(--color-border) !important;
-  border-radius: 8px;
+/* ---------------- Surfaces — paper / hairline ---------------- */
+.rbc-month-view,
+.rbc-week-view,
+.rbc-time-view {
+  border: 1px solid var(--color-hairline) !important;
+  border-radius: 12px;
   overflow: hidden;
   background: var(--color-card);
 }
-.rbc-day-bg + .rbc-day-bg, .rbc-month-row + .rbc-month-row {
-  border-left: 1px solid var(--color-border) !important;
+
+.rbc-month-view + .rbc-time-view,
+.rbc-time-view {
+  border-radius: 12px;
 }
+
+.rbc-day-bg + .rbc-day-bg,
+.rbc-month-row + .rbc-month-row {
+  border-left: 1px solid var(--color-hairline) !important;
+}
+
 .rbc-month-row,
 .rbc-time-content,
 .rbc-time-header-content,
@@ -52,49 +69,115 @@
 .rbc-day-slot .rbc-time-slot,
 .rbc-timeslot-group,
 .rbc-time-content > * + * > * {
-  border-color: var(--color-border) !important;
+  border-color: var(--color-hairline) !important;
 }
-.rbc-off-range-bg { background: transparent !important; }
-.rbc-today { background: transparent !important; }
 
-/* Allow calendar cells to scroll when there are many events */
-/* .rbc-day-bg {
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
+.rbc-off-range-bg {
+  background: color-mix(in oklab, var(--color-mist) 55%, transparent) !important;
 }
+
+.rbc-off-range {
+  color: var(--color-mute);
+  opacity: 0.5;
+}
+
+/* Jour courant — aplat lemon très léger + filet marqué */
+.rbc-today {
+  background: color-mix(in oklab, var(--color-lemon) 10%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-lemon) 40%, transparent);
+}
+
+/* Jours / créneaux passés — grisés, non cliquables */
+.rbc-day-past,
+.rbc-slot-past {
+  background: color-mix(in oklab, var(--color-mist) 45%, transparent) !important;
+  pointer-events: none;
+}
+
+.rbc-day-past .rbc-day-bg {
+  background: transparent !important;
+}
+
+/* ---------------- Événements ---------------- */
 .rbc-event {
-  flex-shrink: 0 !important;
-} */
-.rbc-event {
-  background: var(--color-card) !important;
-  border: 1px solid var(--color-border) !important;
-  color: var(--color-card-foreground) !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: var(--color-ink) !important;
   font-size: 11px;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px color-mix(in oklab, black 12%, transparent);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: none;
+  outline: none;
 }
 
-.rbc-time-slot-disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.rbc-event:focus-visible,
+.rbc-event.rbc-selected {
+  box-shadow: 0 0 0 2px var(--color-lemon);
 }
 
-.rbc-time-slot-disabled .rbc-label {
-  color: var(--color-muted-foreground) !important;
+.rbc-event-inner {
+  border-radius: 8px;
+  overflow: hidden;
+  transition: filter 150ms ease, transform 150ms ease;
 }
 
+.rbc-event-inner:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+
+.rbc-show-more {
+  background: transparent;
+  color: var(--color-moss);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0 4px;
+}
+
+/* ---------------- Time indicator — lemon line ---------------- */
+.rbc-current-time-indicator {
+  background-color: var(--color-lemon);
+  height: 2px;
+  box-shadow: 0 0 8px rgba(198, 255, 26, 0.6);
+}
+
+/* Before dot on time indicator */
+.rbc-current-time-indicator::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-lemon);
+}
+
+/* ---------------- Misc ---------------- */
 .rbc-time-view .rbc-header {
   position: relative;
 }
 
 .rbc-time-view .rbc-header button {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
 }
 
+/* Dark mode overrides */
 .dark .rbc-month-view,
 .dark .rbc-week-view,
 .dark .rbc-time-view,
 .dark .rbc-header,
 .dark .rbc-event {
   box-shadow: none;
+}
+
+.dark .rbc-off-range-bg {
+  background: color-mix(in oklab, var(--color-mist) 30%, transparent) !important;
+}
+
+.dark .rbc-today {
+  background: color-mix(in oklab, var(--color-lemon) 8%, transparent) !important;
 }

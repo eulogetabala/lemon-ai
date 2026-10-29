@@ -10,25 +10,36 @@ export default function DashboardLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="bg-background! border-none">
-        {/* Main content wrapper with premium dark aesthetic */}
+        {/* Main content wrapper — Studio Editorial */}
         <div
           className="
-            m-1.5 rounded-2xl border h-[calc(100vh-12px)]
-            border-white/[0.06] dark:border-white/[0.06]
-            border-border/60
-            bg-background
-            dark:bg-[#070d1a]
-            shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]
+            relative
+            m-2 rounded-2xl border border-border
+            bg-paper dark:bg-paper
+            h-[calc(100vh-16px)]
             overflow-hidden
             flex flex-col
           "
         >
-          {/* Subtle top gradient accent line */}
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/40 to-transparent shrink-0" />
+          {/* Subtle wireframe grid behind content */}
+          <div
+            aria-hidden
+            className="grid-lines pointer-events-none absolute inset-0 opacity-30 dark:hidden"
+          />
+          <div
+            aria-hidden
+            className="dark-grid-lines pointer-events-none absolute inset-0 opacity-30 hidden dark:block"
+          />
+
+          {/* Top accent bar — lemon line matching landing hero */}
+          <div className="relative h-[3px] w-full shrink-0">
+            <div className="absolute inset-0 bg-lemon" />
+            <div className="absolute inset-0 bg-gradient-to-r from-lemon via-lemon/80 to-moss/40" />
+          </div>
 
           {/* Content area */}
-          <div className="flex-1 overflow-auto px-4 pb-4">
-            <div className="py-2">{children}</div>
+          <div className="relative flex-1 overflow-auto px-5 pb-5">
+            <div className="py-4">{children}</div>
           </div>
         </div>
       </SidebarInset>

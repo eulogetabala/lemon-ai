@@ -3,7 +3,7 @@ import * as React from "react"
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar"
 import { format, parse, startOfWeek, getDay, addHours, isBefore, startOfDay } from "date-fns"
 import { fr } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, Plus, } from "lucide-react"
+import { Plus } from "lucide-react"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import "react-big-calendar/lib/css/react-big-calendar.css"
@@ -30,7 +30,7 @@ interface PostCalendarProps {
   isPending: boolean
   currentDate: Date
   view: "month" | "week"
-  onViewChange: (view: string) => void
+  onViewChange?: (view: string) => void
   onDateChange: (date: Date) => void
   onPostClick: (post: PostType) => void
   onCreatePost: (date: Date) => void
@@ -42,7 +42,6 @@ export function PostCalendar({
   isPending,
   currentDate,
   view,
-  onViewChange,
   onDateChange,
   onPostClick,
   onCreatePost,
@@ -60,7 +59,7 @@ export function PostCalendar({
 
   const formats = React.useMemo(() => ({
     weekdayFormat: (date: Date, culture?: string, localizer?: any) =>
-      localizer.format(date, 'EEEE', culture),
+      localizer.format(date, 'EEE', culture),
 
     dayFormat: (date: Date, culture?: string, localizer?: any) =>
       localizer.format(date, 'EEEE d', culture),
@@ -68,131 +67,109 @@ export function PostCalendar({
 
   const isWeekView = view === "week"
 
-  const CustomToolbar = (toolbar: any) => {
-    return (
-      <div className="flex flex-col gap-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center border rounded-md overflow-hidden">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none border-r" onClick={() => toolbar.onNavigate('PREV')}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none" onClick={() => toolbar.onNavigate('NEXT')}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2.5 rounded-2xl border border-hairline bg-white dark:bg-card p-3">
+      {/* Barre de la vue — filtres */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="tag-code text-mute">
+            {isWeekView ? "Vue hebdomadaire" : "Vue mensuelle"}
+          </span>
+          <span className="hidden items-center gap-1.5 sm:flex">
+            <span className="size-1.5 rounded-full bg-lemon animate-pulse-soft" />
+            <span className="tag-code text-mute">{posts.length} publication{posts.length > 1 ? "s" : ""}</span>
+          </span>
+        </div>
 
-            <span className="text-base font-semibold">
-              {format(toolbar.date, "MMMM yyyy", { locale: fr })}
-            </span>
-
-            <Button variant="outline" size="sm" className="font-medium" onClick={() => toolbar.onNavigate('TODAY')}>
-              Aujourd'hui
-            </Button>
-
-            <select
-              className="text-sm font-medium bg-transparent border-none focus:ring-0 cursor-pointer outline-none"
-              value={view}
-              onChange={(e) => onViewChange(e.target.value)}
-            >
-              <option value="month">Mois</option>
-              <option value="week">Semaine</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {rightActions}
-          </div>
+        <div className="flex items-center gap-2">
+          {rightActions}
         </div>
       </div>
-    )
-  }
 
-  return (
-    <div className={cn("h-full relative flex flex-col min-h-[600px] bg-background")}>
-      <Calendar
-        localizer={localizer}
-        culture="fr"
-        events={events}
-        date={currentDate}
-        formats={formats}
-        step={isWeekView ? 15 : 60}
-        timeslots={10}
-        min={new Date(2026, 0, 1, 0, 0)}
-        max={new Date(2026, 0, 1, 22, 0)}
-        onNavigate={onDateChange}
-        view={view === "month" ? Views.MONTH : Views.WEEK}
-        onView={(v) => onViewChange(v === Views.MONTH ? "month" : "week")}
-        onSelectEvent={(event: any) => onPostClick(event)}
-        //onSelectSlot={({ start }) => onCreatePost(start)}
-      
-        // In week view, disable past time slots 
-        // and style them differently
-        slotPropGetter={(date) => {
-          const isPastSlot = isBefore(date, new Date())
-          return isPastSlot
-            ? {
-              className: "rbc-time-slot-disabled",
-              style: {
-                backgroundColor: "hsl(var(--muted) / 0.35)",
-                pointerEvents: "none",
-              },
-            }
-            : {}
-        }}
-        // In month view, disable past dates and style them differently
-        dayPropGetter={(date: Date) => {
-          const isPastDate = isBefore(date, new Date())
-          return {
-            className: isPastDate ? "bg-[#331f000f]! pointer-events-none" : "",
-            style: isPastDate ? { backgroundColor: "hsl(var(--muted) / 0.5)" } : {}
-          }
-        }}
-        components={{
-          toolbar: CustomToolbar,
-          // Customize event rendering to show channel icons and better styling
-          event: ({ event }) => {
-            const channel = event.user_channels?.channel_types
-            const Icon = getChannelIcon(channel?.type || undefined)
-            const color = channel?.color || "#000000"
-            return (
-              <>
+      {/* Grille */}
+      <div className="min-h-0 flex-1">
+        <Calendar
+          localizer={localizer}
+          culture="fr"
+          events={events}
+          date={currentDate}
+          formats={formats}
+          step={isWeekView ? 15 : 60}
+          timeslots={10}
+          min={new Date(2026, 0, 1, 0, 0)}
+          max={new Date(2026, 0, 1, 22, 0)}
+          onNavigate={onDateChange}
+          view={view === "month" ? Views.MONTH : Views.WEEK}
+          onSelectEvent={(event: any) => onPostClick(event)}
+
+          // Dans la vue semaine, on désactive et grise les créneaux passés
+          slotPropGetter={(date) => {
+            const isPastSlot = isBefore(date, new Date())
+            return isPastSlot ? { className: "rbc-slot-past" } : {}
+          }}
+          // Dans la vue mois, on désactive et grise les jours passés
+          dayPropGetter={(date: Date) => {
+            const isPastDate = isBefore(date, startOfDay(new Date()))
+            return isPastDate ? { className: "rbc-day-past" } : {}
+          }}
+          components={{
+            toolbar: () => null,
+            // Rendu des événements : pastille du canal + heure
+            event: ({ event }) => {
+              const channel = event.user_channels?.channel_types
+              const Icon = getChannelIcon(channel?.type || undefined)
+              const color = channel?.color || "#111410"
+              return (
                 <div
-                  className="flex items-center gap-2 px-2 py-1 h-full"
-                  style={{ backgroundColor: color + "20", borderLeft: `3px solid ${color}` }}
+                  className="rbc-event-inner flex h-full items-center gap-1.5 px-1.5 py-0.5"
+                  style={{ backgroundColor: color + "18", borderLeft: `3px solid ${color}` }}
                   onClick={() => onPostClick(event)}
                 >
                   {Icon && <HugeiconsIcon
                     icon={Icon}
-                    className="shrink-0 text-white! size-4! p-0.5 rounded-sm"
+                    className="shrink-0 text-white! size-3.5! p-0.5 rounded-sm"
                     style={{
                       background: color
                     }} />}
-                  <span className="text-xs truncate max-w-[100px]">{event?.title}</span>
-                  <span className="font-semibold">{format(event.scheduled_at, "h:mm a")}</span>
+                  <span className="min-w-0 flex-1 truncate text-[11px] leading-tight text-foreground/80">
+                    {event?.title}
+                  </span>
+                  <span className="shrink-0 text-[10px] font-semibold text-foreground/60">
+                    {format(event.scheduled_at, "HH:mm")}
+                  </span>
                 </div>
-              </>
-            )
-          },
+              )
+            },
 
-          month: {
-            dateHeader: ({ label, date: cellDate }: any) => {
-              const isCellToday = format(cellDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-              const isPastDate = isBefore(cellDate, startOfDay(new Date()))
-              return (
-                <>
-                  <div className="group flex items-center justify-between w-full">
-                    <span className={cn(
-                      "flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium",
-                      isCellToday ? "bg-green-500 text-white" : isPastDate ? "text-muted-foreground" : "text-foreground"
-                    )}>
-                      {label}
-                    </span>
+            month: {
+              dateHeader: ({ label, date: cellDate }: any) => {
+                const isCellToday = format(cellDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                const isPastDate = isBefore(cellDate, startOfDay(new Date()))
+                return (
+                  <div className="group flex items-center justify-between gap-1 w-full">
+                    <div className="flex min-w-0 items-center gap-1">
+                      <span className={cn(
+                        "flex size-6 items-center justify-center rounded-full text-[12px] font-bold transition-colors",
+                        isCellToday
+                          ? "bg-ink text-lemon"
+                          : isPastDate
+                            ? "text-mute/50"
+                            : "text-ink"
+                      )}>
+                        {label}
+                      </span>
+                      {isCellToday && (
+                        <span className="hidden truncate rounded-full bg-lemon px-1.5 py-px tag-code text-ink sm:inline">
+                          Aujourd&apos;hui
+                        </span>
+                      )}
+                    </div>
+
                     {!isPastDate && !isPending && (
                       <Button
-                        size="icon-sm"
-                        variant="default"
-                        className="p-px! size-6! mt-1"
+                        size="icon"
+                        variant="ghost"
+                        className="size-5! shrink-0 rounded-full bg-lemon/0 p-0 text-mute opacity-0 transition-all hover:bg-lemon hover:text-ink group-hover:opacity-100 max-sm:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation()
                           onCreatePost(cellDate)
@@ -201,15 +178,20 @@ export function PostCalendar({
                         <Plus className="size-3" />
                       </Button>
                     )}
-
                   </div>
-                  {isPending && <Skeleton className="h-8 w-11/12 m-2 my-5" />}
-                </>
-              )
-            }
-          },
-        }}
-      />
+                )
+              }
+            },
+          }}
+        />
+
+        {isPending && (
+          <div className="pointer-events-none -mt-24 flex flex-col gap-2 px-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-6 w-52" />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

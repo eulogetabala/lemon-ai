@@ -16,7 +16,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { Calendar, CreditCard, Lightbulb, Plus, PlusCircleIcon, Settings, TrendingUp } from 'lucide-react';
+import { Calendar, CreditCard, Lightbulb, Plus, PlusCircleIcon, Settings, TrendingUp, Sparkles } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import Logo from '@/components/logo';
 import { Button } from '@/components/ui/button';
@@ -33,11 +33,11 @@ import { useState } from 'react';
 import CreatePostDialog from '@/components/schedule/create-post-dialog';
 
 const mainNav = [
-  { name: "Idées", href: "/ideas", icon: Lightbulb },
-  { name: "Planning", href: "/schedule", icon: Calendar },
-  { name: "Veille", href: "/competitor-watch", icon: TrendingUp },
-  { name: "Facturation", href: "/billing", icon: CreditCard },
-  { name: "Paramètres", href: "/settings", icon: Settings },
+  { name: "Idées", href: "/ideas", icon: Lightbulb, description: "Capturer" },
+  { name: "Planning", href: "/schedule", icon: Calendar, description: "Organiser" },
+  { name: "Veille", href: "/competitor-watch", icon: TrendingUp, description: "Surveiller" },
+  { name: "Facturation", href: "/billing", icon: CreditCard, description: "Gérer" },
+  { name: "Paramètres", href: "/settings", icon: Settings, description: "Configurer" },
 ];
 
 const AppSidebar = () => {
@@ -93,18 +93,34 @@ const AppSidebar = () => {
     <>
       <Sidebar collapsible="icon">
         {/* ── Header ── */}
-        <SidebarHeader className={cn("p-4 pb-3", isCollapsed && "p-2")}>
-          <div className='flex items-center justify-between'>
+        <SidebarHeader className={cn(
+          "relative overflow-hidden border-b border-sidebar-border",
+          isCollapsed ? "p-2" : "p-4 pb-3"
+        )}>
+          {/* Subtle grid background on header */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-30"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, rgba(17,20,16,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(17,20,16,0.04) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }}
+          />
+
+          <div className='relative flex items-center justify-between'>
             <Logo hideName={isCollapsed} />
-            <SidebarTrigger className="hidden md:flex -mx-8 mb-0 hover:bg-sidebar-accent transition-colors" />
+            <SidebarTrigger className="hidden md:flex -mx-8 mb-0 hover:bg-sidebar-accent transition-colors rounded-md" />
           </div>
 
-          {/* Create post CTA — premium lime gradient */}
+          {/* Create post CTA — lemon glow style matching landing */}
           <Button
             className={cn(
-              'mt-4 w-full rounded-full font-semibold tracking-tight',
-              'btn-primary-glow text-primary-foreground',
-              isCollapsed ? 'size-9 p-0' : 'h-9'
+              'relative mt-4 w-full rounded-full font-bold tracking-tight transition-all duration-200',
+              'bg-lemon text-ink hover:bg-lemon/90',
+              'shadow-[0_8px_24px_-6px_rgba(198,255,26,0.45)]',
+              'hover:-translate-y-0.5 hover:shadow-[0_12px_32px_-6px_rgba(198,255,26,0.55)]',
+              isCollapsed ? 'size-9 p-0 rounded-xl' : 'h-10'
             )}
             size={isCollapsed ? "icon" : "default"}
             onClick={() => setIsCreatePostOpen(true)}
@@ -115,10 +131,18 @@ const AppSidebar = () => {
         </SidebarHeader>
 
         {/* ── Nav Items ── */}
-        <SidebarContent className={cn(!isCollapsed && "px-2")}>
+        <SidebarContent className={cn(
+          "relative",
+          !isCollapsed && "px-2 pt-3"
+        )}>
           <SidebarGroup>
+            {!isCollapsed && (
+              <SidebarGroupLabel className='tag-code text-sidebar-foreground/30 px-3 mb-2'>
+                Navigation
+              </SidebarGroupLabel>
+            )}
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className="gap-1">
                 {mainNav.map((item) => {
                   const isActive = pathname === item.href
                   return (
@@ -128,18 +152,27 @@ const AppSidebar = () => {
                         isActive={isActive}
                         tooltip={item.name}
                         className={cn(
-                          "rounded-xl h-9 transition-all duration-200 font-medium",
+                          "relative rounded-xl h-10 transition-all duration-200 font-semibold text-sm group/nav-item",
                           isActive
-                            ? "bg-primary/12 text-primary dark:bg-primary/15 dark:text-primary border border-primary/20 shadow-[0_0_12px_rgba(163,230,53,0.08)]"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                            ? "bg-lemon/15 text-ink border border-lemon/30"
+                            : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 border border-transparent"
                         )}
                       >
-                        <Link href={item.href} className="flex items-center gap-2.5">
+                        <Link href={item.href} className="flex items-center gap-3">
+                          {/* Active indicator bar */}
+                          {isActive && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-lemon rounded-r-full" />
+                          )}
                           <item.icon className={cn(
-                            "size-4 shrink-0",
-                            isActive ? "text-primary" : "text-sidebar-foreground/50"
+                            "size-[18px] shrink-0 transition-colors",
+                            isActive ? "text-moss" : "text-sidebar-foreground/35 group-hover/nav-item:text-sidebar-foreground/60"
                           )} />
-                          <span className='text-sm'>{item.name}</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className={cn(
+                              "leading-tight",
+                              isActive && "text-ink"
+                            )}>{item.name}</span>
+                          </div>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -149,16 +182,16 @@ const AppSidebar = () => {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {/* ── Separator ── */}
+          {/* ── Separator — hairline style ── */}
           {!isCollapsed && (
-            <div className="mx-4 h-px bg-gradient-to-r from-transparent via-sidebar-border to-transparent my-1" />
+            <div className="mx-3 h-px bg-sidebar-border/60 my-2" />
           )}
 
           {/* ── Connected Channels ── */}
           {connectedChannels.length > 0 && (
             <SidebarGroup className={cn(isCollapsed && "px-1")}>
               {!isCollapsed && (
-                <SidebarGroupLabel className='text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/35 px-2 mb-1'>
+                <SidebarGroupLabel className='tag-code text-sidebar-foreground/30 px-3 mb-1.5'>
                   Canaux connectés
                 </SidebarGroupLabel>
               )}
@@ -166,9 +199,9 @@ const AppSidebar = () => {
                 <SidebarMenu className="gap-0.5">
                   {isPending ? (
                     <div className='flex flex-col gap-1.5 px-1'>
-                      <Skeleton className='h-8 w-full bg-sidebar-accent' />
-                      <Skeleton className='h-8 w-full bg-sidebar-accent' />
-                      <Skeleton className='h-8 w-full bg-sidebar-accent' />
+                      <Skeleton className='h-9 w-full rounded-xl bg-sidebar-accent' />
+                      <Skeleton className='h-9 w-full rounded-xl bg-sidebar-accent' />
+                      <Skeleton className='h-9 w-full rounded-xl bg-sidebar-accent' />
                     </div>
                   ) : (
                     connectedChannels?.map((channel: ChannelType) => {
@@ -177,7 +210,7 @@ const AppSidebar = () => {
                         <SidebarMenuItem key={channel.id}>
                           <SidebarMenuButton
                             asChild
-                            className="rounded-xl h-9 hover:bg-sidebar-accent transition-colors"
+                            className="rounded-xl h-9 hover:bg-sidebar-accent/80 transition-all duration-200 border border-transparent hover:border-sidebar-border/50"
                           >
                             {profileUrl ? (
                               <a
@@ -195,10 +228,10 @@ const AppSidebar = () => {
                                     profileImage={channel.profile_image}
                                     name=""
                                   />
-                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-emerald-400 ring-[1.5px] ring-sidebar animate-status-pulse" />
+                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-[#27C93F] ring-2 ring-sidebar animate-pulse-soft" />
                                 </div>
                                 {!isCollapsed && (
-                                  <span className="truncate text-sm text-sidebar-foreground/80">
+                                  <span className="truncate text-sm font-medium text-sidebar-foreground/70">
                                     {channel.handle || channel.name}
                                   </span>
                                 )}
@@ -213,10 +246,10 @@ const AppSidebar = () => {
                                     profileImage={channel.profile_image}
                                     name=""
                                   />
-                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-emerald-400 ring-[1.5px] ring-sidebar animate-status-pulse" />
+                                  <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-[#27C93F] ring-2 ring-sidebar animate-pulse-soft" />
                                 </div>
                                 {!isCollapsed && (
-                                  <span className="truncate text-sm text-sidebar-foreground/80">
+                                  <span className="truncate text-sm font-medium text-sidebar-foreground/70">
                                     {channel.handle || channel.name}
                                   </span>
                                 )}
@@ -235,7 +268,7 @@ const AppSidebar = () => {
           {/* ── Unconnected Channels ── */}
           <SidebarGroup className={cn(isCollapsed && "px-1")}>
             {!isCollapsed && (
-              <SidebarGroupLabel className='text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/35 px-2 mb-1'>
+              <SidebarGroupLabel className='tag-code text-sidebar-foreground/30 px-3 mb-1.5'>
                 Connecter des canaux
               </SidebarGroupLabel>
             )}
@@ -243,9 +276,9 @@ const AppSidebar = () => {
               <SidebarMenu className="gap-0.5">
                 {isPending ? (
                   <div className='flex flex-col gap-1.5 px-1'>
-                    <Skeleton className='h-8 w-full bg-sidebar-accent' />
-                    <Skeleton className='h-8 w-full bg-sidebar-accent' />
-                    <Skeleton className='h-8 w-full bg-sidebar-accent' />
+                    <Skeleton className='h-9 w-full rounded-xl bg-sidebar-accent' />
+                    <Skeleton className='h-9 w-full rounded-xl bg-sidebar-accent' />
+                    <Skeleton className='h-9 w-full rounded-xl bg-sidebar-accent' />
                   </div>
                 ) : (
                   <>
@@ -256,7 +289,7 @@ const AppSidebar = () => {
                           <SidebarMenuButton
                             asChild
                             tooltip={`Connecter ${channel.name}`}
-                            className="rounded-xl h-9 hover:bg-sidebar-accent transition-colors"
+                            className="rounded-xl h-9 hover:bg-sidebar-accent/80 transition-all duration-200 border border-transparent hover:border-sidebar-border/50"
                           >
                             <button
                               className='w-full flex items-center gap-2.5'
@@ -269,19 +302,19 @@ const AppSidebar = () => {
                                     <HugeiconsIcon
                                       icon={icon}
                                       color='currentColor'
-                                      className="text-white! size-6! p-1 rounded-lg opacity-70"
+                                      className="text-white! size-6! p-1 rounded-lg opacity-60"
                                       style={{ background: channel.color }}
                                     />
                                   ) : null}
                                   <div className={`absolute -right-1 bottom-0 p-0.5
                                     bg-sidebar dark:bg-sidebar rounded-sm
                                   `}>
-                                    <HugeiconsIcon icon={PlusSignIcon} className="size-2! text-sidebar-foreground/60" />
+                                    <HugeiconsIcon icon={PlusSignIcon} className="size-2! text-sidebar-foreground/50" />
                                   </div>
                                 </div>
                               </span>
                               {!isCollapsed && (
-                                <span className='truncate text-sm text-sidebar-foreground/60'>{channel.name}</span>
+                                <span className='truncate text-sm font-medium text-sidebar-foreground/45'>{channel.name}</span>
                               )}
                             </button>
                           </SidebarMenuButton>
@@ -294,10 +327,10 @@ const AppSidebar = () => {
                       <SidebarMenuButton asChild>
                         <Link
                           href="/settings"
-                          className='w-full flex items-center gap-2.5 rounded-xl h-9 hover:bg-sidebar-accent transition-colors px-2 text-sidebar-foreground/45 hover:text-sidebar-foreground/70'
+                          className='w-full flex items-center gap-2.5 rounded-xl h-9 hover:bg-sidebar-accent/80 transition-all duration-200 px-2 text-sidebar-foreground/35 hover:text-sidebar-foreground/60 border border-transparent hover:border-sidebar-border/50'
                         >
                           <PlusCircleIcon className='size-4 shrink-0' />
-                          {!isCollapsed && <span className='text-sm'>Plus de canaux</span>}
+                          {!isCollapsed && <span className='text-sm font-medium'>Plus de canaux</span>}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -309,40 +342,41 @@ const AppSidebar = () => {
         </SidebarContent>
 
         {/* ── Footer ── */}
-        <SidebarFooter className="p-3">
-          {/* Channel count indicator */}
+        <SidebarFooter className="relative p-3 border-t border-sidebar-border">
+          {/* Channel count indicator — editorial progress bar */}
           {!isCollapsed && (
-            <div className="mb-2 px-2">
-              <div className="flex items-center justify-between text-[10px] text-sidebar-foreground/35 mb-1">
-                <span className="uppercase tracking-widest font-semibold">Canaux</span>
-                <span>{connectedCount}/{totalChannels}</span>
+            <div className="mb-3 px-1">
+              <div className="flex items-center justify-between mb-2">
+                <span className="tag-code text-sidebar-foreground/35">Canaux</span>
+                <span className="tag-code text-sidebar-foreground/50 tabular-nums">{connectedCount}/{totalChannels}</span>
               </div>
-              {/* Progress bar */}
+              {/* Progress bar — lemon fill */}
               <div className="h-1 w-full rounded-full bg-sidebar-accent overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-[#84cc16] transition-all duration-500"
+                  className="h-full rounded-full bg-lemon transition-all duration-700 ease-out"
                   style={{ width: totalChannels > 0 ? `${(connectedCount / totalChannels) * 100}%` : '0%' }}
                 />
               </div>
             </div>
           )}
 
-          {/* User profile card */}
+          {/* User profile card — editorial feel */}
           <div className={cn(
-            "flex items-center gap-2.5 rounded-xl p-2 transition-colors hover:bg-sidebar-accent cursor-pointer",
-            isCollapsed && "justify-center"
+            "flex items-center gap-2.5 rounded-xl p-2.5 transition-all duration-200",
+            "hover:bg-sidebar-accent/80 cursor-pointer border border-transparent hover:border-sidebar-border/50",
+            isCollapsed && "justify-center p-2"
           )}>
             <UserButton
               showName={false}
               appearance={{
                 elements: {
-                  avatarBox: "h-7 w-7 rounded-lg ring-1 ring-primary/20",
+                  avatarBox: "h-8 w-8 rounded-xl ring-2 ring-lemon/20",
                 },
               }}
             />
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-sidebar-foreground/90 truncate leading-tight">
+                <span className="text-[13px] font-bold text-sidebar-foreground/85 truncate leading-tight">
                   {user?.fullName || "Mon compte"}
                 </span>
                 <span className="text-[10px] text-sidebar-foreground/40 truncate leading-tight">

@@ -120,24 +120,20 @@ function ChannelTabContent() {
     }
     return (
         <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Canaux</CardTitle>
-                    <CardDescription>
-                        Connectez vos comptes de réseaux sociaux pour commencer à planifier
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent>
-                    <div className='space-y-3'>
+                <div className='relative border-b border-hairline px-5 py-4'>
+                    <div className='absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-lemon/40 to-transparent' />
+                    <h2 className='text-sm font-extrabold tracking-tight text-ink'>Canaux</h2>
+                    <p className='text-xs text-mute mt-0.5'>Connectez vos comptes de réseaux sociaux pour commencer à planifier</p>
+                </div>
+                <div className='p-4 space-y-2'>
                         {isPending ? (
                             Array.from({ length: 6 }).map((_, index) => (
-                                <div key={index} className='flex items-center justify-between rounded-xl border p-4'>
+                                <div key={index} className='flex items-center justify-between rounded-xl border border-hairline bg-mist/20 p-4'>
                                     <div className='flex items-center gap-3'>
-                                        <Skeleton className='size-6 rounded-sm bg-secondary' />
-                                        <Skeleton className='h-5 w-24 bg-secondary' />
+                                        <div className='size-8 rounded-lg bg-mist animate-pulse' />
+                                        <div className='h-4 w-24 bg-mist rounded-full animate-pulse' />
                                     </div>
-                                    <Skeleton className='h-8 w-20 bg-secondary' />
+                                    <div className='h-8 w-20 bg-mist rounded-full animate-pulse' />
                                 </div>
                             ))
                         ) : (
@@ -162,7 +158,7 @@ function ChannelTabContent() {
                                                             />
                                                         ) : null}
                                                         <div className='absolute -right-1 -bottom-1 bg-white dark:bg-background rounded-full p-0.5'>
-                                                            <div className='size-2.5 bg-primary rounded-full' />
+                                                            <div className='size-2.5 bg-[#27C93F] rounded-full' />
                                                         </div>
                                                     </span>
                                                     <span className='font-medium'>{channel.name}</span>
@@ -171,6 +167,7 @@ function ChannelTabContent() {
                                                 <Button size="sm"
                                                     disabled={connectMutation.isPending}
                                                     onClick={() => handleConnect(channel.id!)}
+                                                    className='rounded-full bg-ink text-lemon hover:bg-ink/90 font-bold text-xs h-8 px-4'
                                                 >
                                                     {connectMutation.isPending && connectMutation.variables?.channelTypeId === channel.id && (
                                                         <Spinner className='size-4' />
@@ -207,7 +204,7 @@ function ChannelTabContent() {
 
                                 return (
                                     <div key={channel.id}
-                                        className='flex items-center justify-between rounded-xl border p-4'
+                                        className='flex items-center justify-between rounded-xl border border-hairline bg-white dark:bg-card p-4'
                                     >
                                         <div className='flex items-center gap-3'>
                                             <span className='relative'>
@@ -226,7 +223,7 @@ function ChannelTabContent() {
                                                     }
                                                 )}>
                                                     {channel.connected ? (
-                                                        <div className='size-2.5 bg-primary rounded-full' />
+                                                        <div className='size-2.5 bg-[#27C93F] rounded-full' />
                                                     ) : (
                                                         <HugeiconsIcon icon={PlusSignIcon} className="size-2!" />
                                                     )}
@@ -236,9 +233,17 @@ function ChannelTabContent() {
                                             <span className='font-medium'>{channel.name}</span>
                                         </div>
 
-                                        <Button variant={channel.connected ? "destructive" : "default"} size="sm"
+                                        <Button
+                                            variant={channel.connected ? "destructive" : "default"}
+                                            size="sm"
                                             disabled={connectMutation.isPending || disconnectMutation.isPending}
                                             onClick={() => channel.connected ? handleDisconnect(channel.user_channel_id!) : handleConnect(channel.id!)}
+                                            className={cn(
+                                              'rounded-full font-bold text-xs h-8 px-4',
+                                              channel.connected
+                                                ? 'bg-stamp/10 text-stamp border border-stamp/25 hover:bg-stamp hover:text-white'
+                                                : 'bg-ink text-lemon hover:bg-ink/90'
+                                            )}
                                         >
                                             {((connectMutation.isPending && connectMutation.variables?.channelTypeId === channel.id) ||
                                               (disconnectMutation.isPending && disconnectMutation.variables === channel.user_channel_id)) && (
@@ -251,8 +256,8 @@ function ChannelTabContent() {
                             })
                         )}
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             <FacebookPagePicker
                 open={fbPickerOpen}

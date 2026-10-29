@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const jakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -29,14 +29,14 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${plusJakarta.variable} h-full antialiased dark`}
+      className={`${jakarta.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         <ClerkProvider>
           <QueryProvider>
             <ThemeProvider
               attribute="class"
-              defaultTheme="dark"
+              defaultTheme="light"
               disableTransitionOnChange
             >
               <TooltipProvider>

@@ -4,7 +4,6 @@ import { ChevronDown, Copy, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
@@ -39,7 +38,7 @@ const ScheduleToolbar = ({
   toggleChannel,
   selectedStatus,
   setSelectedStatus,
-}: ScheduleToolbarProps) =>{
+}: ScheduleToolbarProps) => {
   const { data: channelsData } = useQuery({
     queryKey: ["channels-connected"],
     queryFn: async () => {
@@ -52,34 +51,37 @@ const ScheduleToolbar = ({
 
   return (
     <div className="flex items-center gap-2">
-      {/* Status Filter */}
+      {/* Status Filter — calendar only */}
       {viewType === "calendar" && (
-
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="lg" className="h-8 gap-1">
+            <button className="flex h-7 items-center gap-1.5 rounded-full border border-hairline bg-white dark:bg-card px-2.5 tag-code text-mute hover:text-ink hover:border-lemon/30 transition-all duration-200">
               <Copy className="h-3.5 w-3.5" />
-              <span className="font-medium text-sm text-muted-foreground!">
-                {statusOptions.find((s) => s.id === selectedStatus)?.label || "Toutes les publications"}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </Button>
+              <span>{statusOptions.find((s) => s.id === selectedStatus)?.label || "Toutes"}</span>
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
           </PopoverTrigger>
-          <PopoverContent className="w-48 p-2" align="end">
-            <div className="space-y-1">
+          <PopoverContent className="w-48 p-2 rounded-2xl border-hairline shadow-lg" align="end">
+            <div className="space-y-0.5">
               {statusOptions.map((option) => (
                 <button
                   key={option.id}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted transition-colors",
-                    selectedStatus === option.id && "bg-muted font-medium"
+                    "flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold transition-all duration-150",
+                    selectedStatus === option.id
+                      ? "bg-lemon/15 text-moss"
+                      : "text-mute hover:bg-mist hover:text-ink"
                   )}
                   onClick={() => setSelectedStatus(option.id)}
                 >
-                  <Checkbox
-                    checked={selectedStatus === option.id}
-                    className="pointer-events-none"
-                  />
+                  <span className={cn(
+                    "size-3.5 rounded-full border-2 flex items-center justify-center",
+                    selectedStatus === option.id ? "border-moss bg-moss" : "border-mute/40"
+                  )}>
+                    {selectedStatus === option.id && (
+                      <span className="size-1.5 rounded-full bg-white" />
+                    )}
+                  </span>
                   <span>{option.label}</span>
                 </button>
               ))}
@@ -91,27 +93,25 @@ const ScheduleToolbar = ({
       {/* Channels Filter */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="lg" className="h-8 gap-1">
+          <button className="flex h-7 items-center gap-1.5 rounded-full border border-hairline bg-white dark:bg-card px-2.5 tag-code text-mute hover:text-ink hover:border-lemon/30 transition-all duration-200">
             <LayoutGrid className="h-3.5 w-3.5" />
-            <span className="font-medium text-sm text-muted-foreground!">
-              Canaux
-            </span>
+            <span>Canaux</span>
             {channelIds && channelIds?.length > 0 && (
-              <Badge variant="default" className="size-4!">
+              <span className="flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-lemon text-ink text-[10px] font-bold px-1 tabular-nums">
                 {channelIds.length}
-              </Badge>
+              </span>
             )}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
+            <ChevronDown className="h-3 w-3 opacity-60" />
+          </button>
         </PopoverTrigger>
-        <PopoverContent className="w-86 p-0" align="end">
+        <PopoverContent className="w-72 p-0 rounded-2xl border-hairline shadow-lg" align="end">
           <Command>
             <CommandList>
               <CommandGroup heading="Canaux connectés">
                 {connectedChannels?.length === 0 ? (
-                  <div className="py-4 px-2 text-center">
-                    <p className="text-xs text-muted-foreground mb-3">Aucun canal connecté</p>
-                    <Button size="sm" className="w-fit px-5" asChild>
+                  <div className="py-5 px-3 text-center">
+                    <p className="text-xs text-mute mb-3">Aucun canal connecté</p>
+                    <Button size="sm" className="w-fit px-5 rounded-full bg-ink text-lemon hover:bg-ink/90 font-bold" asChild>
                       <Link href="/settings">Connecter un canal</Link>
                     </Button>
                   </div>
@@ -120,7 +120,7 @@ const ScheduleToolbar = ({
                     <CommandItem
                       key={channel.id}
                       onSelect={() => toggleChannel(channel.id)}
-                      className="flex items-center justify-between gap-2 px-2 py-1.5"
+                      className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl cursor-pointer"
                     >
                       <ChannelAvatar
                         size="sm"
@@ -131,10 +131,16 @@ const ScheduleToolbar = ({
                         name={channel.handle || channel.name}
                       />
 
-                      <Checkbox
-                        checked={channelIds.includes(channel.id)}
-                        className="border-black!"
-                      />
+                      <div className={cn(
+                        "size-4 rounded border-2 flex items-center justify-center transition-all",
+                        channelIds.includes(channel.id)
+                          ? "border-moss bg-moss"
+                          : "border-mute/40"
+                      )}>
+                        {channelIds.includes(channel.id) && (
+                          <span className="text-white text-[10px] font-bold">✓</span>
+                        )}
+                      </div>
                     </CommandItem>
                   ))
                 )}

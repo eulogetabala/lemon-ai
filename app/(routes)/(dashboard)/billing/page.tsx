@@ -1,10 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Zap, Rocket, Building2, Star } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Check, Zap, Rocket, Building2, Star, CreditCard, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 type BillingInterval = "monthly" | "yearly"
 
@@ -107,38 +106,46 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="w-full max-w-5xl px-4 py-6 mx-auto">
-      {/* Header */}
+    <div className="w-full max-w-5xl px-2 py-4 mx-auto">
+      {/* Header — Studio Editorial */}
       <div className="mb-10 text-center">
-        <h1 className="text-2xl font-bold tracking-tight mb-1.5 text-foreground">
-          Facturation et offres
+        <div className="inline-flex items-center gap-2 rounded-full border border-hairline bg-white dark:bg-mist/10 px-3.5 py-1.5 mb-5">
+          <CreditCard className="size-3.5 text-moss" />
+          <span className="tag-code text-mute">Facturation & offres</span>
+        </div>
+
+        <h1 className="text-[clamp(1.6rem,4vw,2.25rem)] font-extrabold tracking-[-0.035em] text-ink leading-[1.1]">
+          Choisissez votre <span className="hi-swipe px-1.5">offre</span>
         </h1>
-        <p className="text-sm text-foreground/45 max-w-md mx-auto">
-          Choisissez l’offre adaptée à vos besoins. Passez à une offre supérieure, inférieure ou annulez à tout moment.
+        <p className="text-[15px] text-mute max-w-lg mx-auto mt-3 leading-relaxed">
+          Passez à une offre supérieure, inférieure ou annulez à tout moment.
+          Pas d'engagement, pas de surprise.
         </p>
 
-        {/* Interval toggle */}
-        <div className="mt-6 inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-1">
+        {/* Interval toggle — pill style matching landing */}
+        <div className="mt-7 inline-flex items-center gap-0.5 rounded-full border border-hairline bg-mist/50 p-1">
           <button
             onClick={() => setInterval("monthly")}
-            className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+            className={cn(
+              "px-5 py-2 rounded-full text-xs font-bold transition-all duration-200",
               interval === "monthly"
-                ? "bg-foreground text-background shadow-sm"
-                : "text-foreground/45 hover:text-foreground/70"
-            }`}
+                ? "bg-ink text-lemon shadow-sm"
+                : "text-mute hover:text-ink"
+            )}
           >
             Mensuel
           </button>
           <button
             onClick={() => setInterval("yearly")}
-            className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-2 ${
+            className={cn(
+              "px-5 py-2 rounded-full text-xs font-bold transition-all duration-200 flex items-center gap-2",
               interval === "yearly"
-                ? "bg-foreground text-background shadow-sm"
-                : "text-foreground/45 hover:text-foreground/70"
-            }`}
+                ? "bg-ink text-lemon shadow-sm"
+                : "text-mute hover:text-ink"
+            )}
           >
             Annuel
-            <span className="text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+            <span className="tag-code bg-lemon text-ink rounded-full px-2 py-0.5">
               –20 %
             </span>
           </button>
@@ -152,76 +159,95 @@ export default function BillingPage() {
           return (
             <div
               key={plan.id}
-              className={`relative flex flex-col rounded-2xl border p-1 transition-all duration-300 ${
+              className={cn(
+                "relative flex flex-col rounded-2xl border transition-all duration-300",
                 plan.highlight
-                  ? "border-primary/40 glow-lime animate-border-glow"
-                  : "border-white/[0.08] hover:-translate-y-1"
-              }`}
+                  ? "border-lemon/50 shadow-[0_16px_40px_-12px_rgba(198,255,26,0.2)]"
+                  : "border-hairline hover:-translate-y-1 hover:border-lemon/20 hover:shadow-[0_12px_32px_-10px_rgba(198,255,26,0.1)]"
+              )}
             >
               {/* Inner surface */}
-              <div className={`flex flex-col flex-1 rounded-xl p-5 ${
+              <div className={cn(
+                "flex flex-col flex-1 rounded-2xl p-6",
                 plan.highlight
-                  ? "bg-gradient-to-b from-primary/[0.07] to-transparent"
-                  : "dark:bg-[#0d1526]/60 bg-card"
-              }`}>
+                  ? "bg-white dark:bg-card"
+                  : "bg-white dark:bg-card"
+              )}>
 
               {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary-foreground shadow-[0_0_12px_rgba(163,230,53,0.4)]">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                  <span className="inline-flex items-center rounded-full bg-lemon px-3 py-1 tag-code text-ink lime-glow">
                     {plan.badge}
                   </span>
                 </div>
               )}
 
               {/* Plan icon */}
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center mb-4 border",
                 plan.highlight
-                  ? "bg-primary/15 ring-1 ring-primary/30"
-                  : "bg-white/[0.05] ring-1 ring-white/[0.08]"
-              }`}>
-                <Icon className={`size-5 ${plan.highlight ? "text-primary" : "text-foreground/40"}`} />
+                  ? "bg-lemon/15 border-lemon/25"
+                  : "bg-mist/50 border-hairline"
+              )}>
+                <Icon className={cn(
+                  "size-5",
+                  plan.highlight ? "text-moss" : "text-mute"
+                )} />
               </div>
 
-              <h3 className="text-sm font-bold tracking-tight text-foreground/90">{plan.name}</h3>
-              <p className="text-xs text-foreground/40 mt-1 leading-relaxed">{plan.description}</p>
+              <h3 className="text-sm font-extrabold tracking-tight text-ink">{plan.name}</h3>
+              <p className="text-xs text-mute mt-1 leading-relaxed">{plan.description}</p>
 
               {/* Price */}
               <div className="mt-5 mb-5">
                 <div className="flex items-end gap-1">
-                  <span className={`text-4xl font-bold tracking-tight ${
-                    plan.highlight ? "text-gradient-lime-simple" : "text-foreground/90"
-                  }`}>
+                  <span className={cn(
+                    "text-4xl font-extrabold tracking-tight",
+                    plan.highlight ? "text-moss" : "text-ink"
+                  )}>
                     {displayPrice(plan)}
                   </span>
                   {plan.monthlyPrice !== null && plan.monthlyPrice > 0 && (
-                    <span className="text-foreground/35 text-xs mb-1.5">/mois</span>
+                    <span className="text-mute text-xs mb-1.5 font-medium">/mois</span>
                   )}
                 </div>
                 {interval === "yearly" && plan.yearlyPrice && plan.yearlyPrice > 0 && (
-                  <p className="text-[10px] text-foreground/35 mt-0.5">
+                  <p className="tag-code text-mute mt-1">
                     Facturé {plan.yearlyPrice * 12} $/an
                   </p>
                 )}
                 {plan.monthlyPrice === null && (
-                  <p className="text-[10px] text-foreground/35 mt-0.5">Adapté à vos besoins</p>
+                  <p className="tag-code text-mute mt-1">Adapté à vos besoins</p>
                 )}
               </div>
 
               {/* Features */}
               <ul className="space-y-2.5 flex-1">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-xs">
-                    <div className="mt-0.5 size-4 shrink-0 rounded-full bg-primary/15 flex items-center justify-center">
-                      <Check className="size-2.5 text-primary" />
+                  <li key={feature} className="flex items-start gap-2.5 text-xs">
+                    <div className={cn(
+                      "mt-0.5 size-4 shrink-0 rounded-full flex items-center justify-center",
+                      plan.highlight ? "bg-lemon/20" : "bg-mist"
+                    )}>
+                      <Check className={cn(
+                        "size-2.5",
+                        plan.highlight ? "text-moss" : "text-mute"
+                      )} />
                     </div>
-                    <span className="text-foreground/55 leading-tight">{feature}</span>
+                    <span className="text-ink/70 leading-tight">{feature}</span>
                   </li>
                 ))}
               </ul>
 
               <Button
-                className={`w-full mt-5 rounded-full h-9 text-xs font-semibold`}
-                variant={plan.highlight ? "default" : "outline"}
+                className={cn(
+                  "w-full mt-6 rounded-full h-10 text-xs font-bold transition-all duration-200 gap-1.5",
+                  plan.highlight
+                    ? "bg-lemon text-ink hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(198,255,26,0.4)] hover:-translate-y-0.5"
+                    : plan.disabled
+                      ? "bg-mist text-mute cursor-not-allowed"
+                      : "bg-ink text-lemon hover:bg-ink/90"
+                )}
                 disabled={plan.disabled}
                 onClick={() => {
                   if (plan.id === "enterprise") {
@@ -230,6 +256,7 @@ export default function BillingPage() {
                 }}
               >
                 {plan.cta}
+                {!plan.disabled && <ArrowRight className="size-3.5" />}
               </Button>
               </div>
             </div>
@@ -238,10 +265,10 @@ export default function BillingPage() {
       </div>
 
       {/* Footer note */}
-      <p className="text-center text-xs text-foreground/30 mt-8">
+      <p className="text-center text-xs text-mute mt-10">
         Toutes les offres incluent un essai gratuit de 14 jours. Aucune carte bancaire requise pour commencer.
         Des questions ?{" "}
-        <a href="mailto:support@lemonai.app" className="underline underline-offset-2 hover:text-foreground/60 transition-colors">
+        <a href="mailto:support@lemonai.app" className="underline underline-offset-2 hover:text-moss transition-colors font-semibold">
           Contacter le support
         </a>
       </p>

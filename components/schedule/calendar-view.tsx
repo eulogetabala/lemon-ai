@@ -12,8 +12,17 @@ import { EditPostDialog } from "./edit-post-dialog"
 
 type ViewType = "month" | "week"
 
-const CalendarView = () => {
-  const [view, setView] = useQueryState("view", { defaultValue: "month" })
+interface CalendarViewProps {
+  view?: ViewType
+  currentDate?: Date
+  onDateChange?: (date: Date) => void
+}
+
+const CalendarView = ({
+  view = "month",
+  currentDate: controlledDate,
+  onDateChange,
+}: CalendarViewProps = {}) => {
   const [channelIds, setChannelIds] = useQueryState("channelIds", {
     defaultValue: [],
     parse: (query) => query.split(","),
@@ -24,7 +33,9 @@ const CalendarView = () => {
       defaultValue: ""
 
     })
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [innerDate, setInnerDate] = useState(new Date())
+  const currentDate = controlledDate ?? innerDate
+  const setCurrentDate = onDateChange ?? setInnerDate
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [selectedPostForEdit, setSelectedPostForEdit] = useState<PostType | null>(null);
@@ -76,29 +87,24 @@ const CalendarView = () => {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden bg-background">
-      <div className="h-[calc(100vh-100px)]">
-        <div className="flex-1 p-6 pt-4 h-full">
-          <PostCalendar
-            posts={posts}
-            isPending={isPending}
-            currentDate={currentDate}
-            view={view as ViewType}
-            onViewChange={setView}
-            onDateChange={setCurrentDate}
-            onPostClick={handlePostClick}
-            onCreatePost={handleCreatePost}
-            rightActions={
-              <ScheduleToolbar
-                channelIds={channelIds}
-                toggleChannel={toggleChannel}
-                selectedStatus={selectedStatus}
-                setSelectedStatus={setSelectedStatus}
-              />
-            }
+    <div className="flex h-full min-h-0 flex-col">
+      <PostCalendar
+        posts={posts}
+        isPending={isPending}
+        currentDate={currentDate}
+        view={view}
+        onDateChange={setCurrentDate}
+        onPostClick={handlePostClick}
+        onCreatePost={handleCreatePost}
+        rightActions={
+          <ScheduleToolbar
+            channelIds={channelIds}
+            toggleChannel={toggleChannel}
+            selectedStatus={selectedStatus}
+            setSelectedStatus={setSelectedStatus}
           />
-        </div>
-      </div>
+        }
+      />
 
 
       <EditPostDialog

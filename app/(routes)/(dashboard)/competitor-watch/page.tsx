@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Trash2, TrendingUp, TrendingDown, Users, Search, X } from "lucide-react"
+import { Plus, Trash2, TrendingUp, TrendingDown, Users, Search, X, Radar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -110,29 +110,29 @@ function AddCompetitorDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button id="add-competitor-btn" className="rounded-full h-8 px-4 text-xs gap-1.5 font-semibold">
+        <Button id="add-competitor-btn" className="rounded-full h-9 px-4 text-xs gap-1.5 font-bold bg-lemon text-ink hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(198,255,26,0.4)] hover:-translate-y-0.5 transition-all duration-200">
           <Plus className="size-3.5" />
           Ajouter un concurrent
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md rounded-2xl border-hairline">
         <DialogHeader>
-          <DialogTitle>Nouveau concurrent</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="font-extrabold tracking-tight">Nouveau concurrent</DialogTitle>
+          <DialogDescription className="text-mute">
             Saisissez la page du concurrent à surveiller. Ses données publiques seront synchronisées mois par mois.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Nom de la marque</label>
-            <Input id="comp-name" placeholder="ex : Nike" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="text-sm font-semibold text-ink">Nom de la marque</label>
+            <Input id="comp-name" placeholder="ex : Nike" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl border-hairline" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Secteur (optionnel)</label>
-            <Input id="comp-industry" placeholder="ex : Sport & Lifestyle" value={industry} onChange={(e) => setIndustry(e.target.value)} />
+            <label className="text-sm font-semibold text-ink">Secteur (optionnel)</label>
+            <Input id="comp-industry" placeholder="ex : Sport & Lifestyle" value={industry} onChange={(e) => setIndustry(e.target.value)} className="rounded-xl border-hairline" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Réseaux à suivre</label>
+            <label className="text-sm font-semibold text-ink">Réseaux à suivre</label>
             <div className="grid grid-cols-2 gap-2">
               {(["facebook", "instagram", "linkedin", "twitter"] as CompetitorPlatformKey[]).map((p) => {
                 const selected = platforms.includes(p)
@@ -144,12 +144,12 @@ function AddCompetitorDialog({
                     aria-pressed={selected}
                     onClick={() => togglePlatform(p)}
                     className={cn(
-                      "flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
-                      selected ? "border-primary bg-primary/10 text-foreground" : "border-border hover:bg-muted/60",
+                      "flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all duration-200",
+                      selected ? "border-lemon/40 bg-lemon/10 text-ink" : "border-hairline hover:bg-mist/60 text-mute",
                     )}
                   >
                     <span>{PLATFORM_META[p].label}</span>
-                    {selected && <span className="text-[10px] font-semibold uppercase tracking-[0.12em]">On</span>}
+                    {selected && <span className="tag-code text-moss">On</span>}
                   </button>
                 )
               })}
@@ -158,21 +158,22 @@ function AddCompetitorDialog({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Identifiants par plateforme</label>
-              <span className="text-xs text-muted-foreground">
+              <label className="text-sm font-semibold text-ink">Identifiants par plateforme</label>
+              <span className="tag-code text-mute">
                 {platforms.length} sélectionnée{platforms.length > 1 ? "s" : ""}
               </span>
             </div>
 
             <div className="space-y-3">
               {platforms.map((platform) => (
-                <div key={platform} className="rounded-xl border border-border bg-muted/20 p-3">
-                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                <div key={platform} className="rounded-xl border border-hairline bg-mist/20 p-3">
+                  <label className="tag-code text-mute mb-1.5 block">
                     {PLATFORM_META[platform].label}
                   </label>
                   <Input
                     value={platformHandles[platform] ?? ""}
                     onChange={(e) => setPlatformHandles((prev) => ({ ...prev, [platform]: e.target.value }))}
+                    className="rounded-xl border-hairline"
                     placeholder={
                       platform === "linkedin"
                         ? "https://linkedin.com/company/nike"
@@ -189,10 +190,10 @@ function AddCompetitorDialog({
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)} className="rounded-full border-hairline">
               Annuler
             </Button>
-            <Button onClick={handleAdd} disabled={!name.trim() || platforms.length === 0 || isSubmitting}>
+            <Button onClick={handleAdd} disabled={!name.trim() || platforms.length === 0 || isSubmitting} className="rounded-full bg-ink text-lemon font-bold hover:bg-ink/90">
               {isSubmitting ? "Synchronisation…" : "Ajouter"}
             </Button>
           </div>
@@ -213,28 +214,27 @@ function CompetitorCard({
 
   return (
     <Link href={`/competitor-watch/${competitor.id}`} className="group block h-full">
-      <article className="group relative h-full overflow-hidden rounded-2xl border border-white/[0.08] dark:bg-[#0d1526]/70 bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_16px_40px_rgba(0,0,0,0.3),0_0_0_1px_rgba(163,230,53,0.1)]">
-        {/* Top lime accent gradient */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/[0.05] to-transparent" />
+      <article className="group relative h-full overflow-hidden rounded-2xl border border-hairline bg-white dark:bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-lemon/30 hover:shadow-[0_16px_40px_-12px_rgba(198,255,26,0.15)]">
+        {/* Top lemon accent line */}
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-lemon/40 to-transparent" />
 
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar className="size-10 shrink-0 ring-2 ring-white/8">
-              <AvatarFallback className="bg-gradient-to-br from-primary to-[#84cc16] text-sm font-bold text-primary-foreground">
+            <Avatar className="size-10 shrink-0 ring-2 ring-lemon/15">
+              <AvatarFallback className="bg-lemon/15 text-sm font-bold text-moss">
                 {competitor.name.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h2 className="truncate text-sm font-semibold text-foreground/90">{competitor.name}</h2>
+                <h2 className="truncate text-sm font-bold text-ink">{competitor.name}</h2>
                 {competitor.verified && (
-                  <span className="rounded-full bg-primary/12 border border-primary/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
+                  <span className="rounded-full bg-lemon/15 border border-lemon/25 px-1.5 py-0.5 tag-code text-moss">
                     Connecté
                   </span>
                 )}
               </div>
-              <p className="truncate text-xs text-foreground/40">{competitor.industry || "—"}</p>
+              <p className="truncate text-xs text-mute">{competitor.industry || "—"}</p>
             </div>
           </div>
 
@@ -244,7 +244,7 @@ function CompetitorCard({
               e.preventDefault()
               onRemove()
             }}
-            className="rounded-lg p-1.5 text-foreground/30 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+            className="rounded-xl p-1.5 text-mute/50 opacity-0 transition-all hover:bg-stamp/10 hover:text-stamp group-hover:opacity-100"
             aria-label="Retirer le concurrent"
           >
             <Trash2 className="size-3.5" />
@@ -256,7 +256,7 @@ function CompetitorCard({
           {competitor.platforms.map((p) => (
             <span
               key={p.platform}
-              className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-foreground/50"
+              className="rounded-full border border-hairline bg-mist/50 px-2.5 py-1 tag-code text-mute"
             >
               {PLATFORM_META[p.platform]?.label ?? p.platform}
             </span>
@@ -265,29 +265,29 @@ function CompetitorCard({
 
         {/* Stats grid */}
         <dl className="relative mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5">
-            <dt className="text-[10px] uppercase tracking-[0.16em] text-foreground/35 font-semibold">Abonnés</dt>
-            <dd className="mt-1.5 text-sm font-bold tabular-nums text-foreground/80">{formatNumber(totals.followers)}</dd>
+          <div className="rounded-xl border border-hairline bg-mist/30 p-2.5">
+            <dt className="tag-code text-mute">Abonnés</dt>
+            <dd className="mt-1.5 text-sm font-bold tabular-nums text-ink">{formatNumber(totals.followers)}</dd>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5">
-            <dt className="text-[10px] uppercase tracking-[0.16em] text-foreground/35 font-semibold">Posts</dt>
-            <dd className="mt-1.5 text-sm font-bold tabular-nums text-foreground/80">{totals.posts || "—"}</dd>
+          <div className="rounded-xl border border-hairline bg-mist/30 p-2.5">
+            <dt className="tag-code text-mute">Posts</dt>
+            <dd className="mt-1.5 text-sm font-bold tabular-nums text-ink">{totals.posts || "—"}</dd>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5">
-            <dt className="text-[10px] uppercase tracking-[0.16em] text-foreground/35 font-semibold">Eng.</dt>
-            <dd className="mt-1.5 text-sm font-bold tabular-nums text-foreground/80">
+          <div className="rounded-xl border border-hairline bg-mist/30 p-2.5">
+            <dt className="tag-code text-mute">Eng.</dt>
+            <dd className="mt-1.5 text-sm font-bold tabular-nums text-ink">
               {totals.engagement ? `${totals.engagement.toFixed(1)} %` : "—"}
             </dd>
           </div>
         </dl>
 
         {totals.impressions > 0 && (
-          <div className="relative mt-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-xs">
-            <span className="text-foreground/40 tabular-nums">{formatNumber(totals.impressions)} impressions</span>
+          <div className="relative mt-3 flex items-center justify-between rounded-xl border border-hairline bg-mist/30 px-3 py-2 text-xs">
+            <span className="text-mute tabular-nums">{formatNumber(totals.impressions)} impressions</span>
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 font-semibold tabular-nums",
-                totals.change >= 0 ? "text-emerald-400" : "text-destructive",
+                "inline-flex items-center gap-0.5 font-bold tabular-nums",
+                totals.change >= 0 ? "text-moss" : "text-stamp",
               )}
             >
               {totals.change >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
@@ -345,80 +345,78 @@ export default function CompetitorWatchPage() {
   const totalFollowers = competitors.reduce((sum, c) => sum + c.totals.followers, 0)
 
   return (
-    <div className="w-full min-h-full py-2">
-      <div className="overflow-hidden rounded-2xl border border-white/[0.07] dark:bg-[#070d1a]/50 bg-card">
-        {/* Header */}
-        <header className="flex flex-col justify-between gap-4 border-b border-white/[0.07] px-6 py-5 sm:flex-row sm:items-center sm:px-7 relative overflow-hidden">
-          {/* Lime top accent */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-primary/[0.04] to-transparent" />
-
-          <div className="relative">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-foreground/35">Dashboard</p>
-            <h1 className="mt-1.5 text-xl font-bold tracking-tight text-foreground">Veille concurrentielle</h1>
-            <p className="mt-1 text-xs text-foreground/40">
+    <div className="w-full min-h-full py-1">
+      {/* ── Header — Studio Editorial ── */}
+      <header className="flex flex-col justify-between gap-4 pb-5 sm:flex-row sm:items-start">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-lemon/15 border border-lemon/25">
+            <Radar className="size-[18px] text-moss" />
+          </div>
+          <div>
+            <h1 className="text-xl font-extrabold tracking-tight text-ink">Veille concurrentielle</h1>
+            <p className="mt-0.5 text-[13px] text-mute">
               {isLoading
                 ? "Chargement…"
                 : `${competitors.length} concurrent${competitors.length > 1 ? "s" : ""} suivi${competitors.length > 1 ? "s" : ""}${totalFollowers > 0 ? ` · ${formatNumber(totalFollowers)} abonnés cumulés` : ""}`}
             </p>
           </div>
+        </div>
 
-          <div className="relative flex items-center gap-2">
-            {competitors.length > 0 && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-foreground/30" />
-                <Input
-                  id="competitor-search"
-                  placeholder="Rechercher…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-8 w-44 pl-9 text-xs rounded-full bg-white/5 border-white/10 focus:border-primary/50"
-                />
-                {search && (
-                  <button type="button" onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <X className="size-3.5 text-foreground/40 hover:text-foreground/70" />
-                  </button>
-                )}
-              </div>
-            )}
-            <AddCompetitorDialog onAdd={handleAdd} />
-          </div>
-        </header>
-
-        {/* Content */}
-        <div className="px-6 py-5 sm:px-7">
-          {isLoading ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-[200px] rounded-2xl border border-white/[0.07] bg-white/[0.03] animate-pulse" />
-              ))}
-            </div>
-          ) : competitors.length === 0 ? (
-            <div className="flex h-72 flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] p-8 text-center">
-              <div className="flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-                <Users className="size-6 text-foreground/30" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground/80">Aucun concurrent ajouté</p>
-                <p className="text-sm text-foreground/40 mt-1">Commencez par ajouter une marque à surveiller.</p>
-              </div>
-              <AddCompetitorDialog onAdd={handleAdd} />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex h-48 flex-col items-center justify-center gap-2">
-              <p className="text-sm text-foreground/40">Aucun concurrent trouvé pour « {search} »</p>
-              <Button variant="ghost" size="sm" onClick={() => setSearch("")} className="rounded-full text-xs">
-                Effacer la recherche
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 pb-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {filtered.map((c) => (
-                <CompetitorCard key={c.id} competitor={c} onRemove={() => handleRemove(c.id)} />
-              ))}
+        <div className="flex items-center gap-2.5">
+          {competitors.length > 0 && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-mute/60" />
+              <Input
+                id="competitor-search"
+                placeholder="Rechercher…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 w-48 pl-9 text-xs rounded-full bg-white dark:bg-card border-hairline focus:border-lemon/40 transition-colors"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <X className="size-3.5 text-mute hover:text-ink transition-colors" />
+                </button>
+              )}
             </div>
           )}
+          <AddCompetitorDialog onAdd={handleAdd} />
         </div>
+      </header>
+
+      {/* Content */}
+      <div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-[200px] rounded-2xl border border-hairline bg-mist/20 animate-pulse" />
+            ))}
+          </div>
+        ) : competitors.length === 0 ? (
+          <div className="flex h-72 flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-hairline bg-mist/10 p-8 text-center">
+            <div className="flex size-14 items-center justify-center rounded-2xl border border-hairline bg-white dark:bg-card">
+              <Users className="size-6 text-mute" />
+            </div>
+            <div>
+              <p className="font-bold text-ink">Aucun concurrent ajouté</p>
+              <p className="text-sm text-mute mt-1">Commencez par ajouter une marque à surveiller.</p>
+            </div>
+            <AddCompetitorDialog onAdd={handleAdd} />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex h-48 flex-col items-center justify-center gap-2">
+            <p className="text-sm text-mute">Aucun concurrent trouvé pour « {search} »</p>
+            <Button variant="ghost" size="sm" onClick={() => setSearch("")} className="rounded-full text-xs text-moss hover:bg-lemon/10">
+              Effacer la recherche
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 pb-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {filtered.map((c) => (
+              <CompetitorCard key={c.id} competitor={c} onRemove={() => handleRemove(c.id)} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

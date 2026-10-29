@@ -6,12 +6,11 @@ import { ArrowLeft, ArrowUpRight, CalendarClock, CircleAlert, Download, Eye, Eye
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import ChannelAvatar from "@/components/channel-avatar";
 import { ChannelTypeEnum } from "@/constants/channels";
 import { stripRichTextFormatting } from "@/lib/rich-text";
+import { cn } from "@/lib/utils";
 
 type ChannelOption = {
   id: string;
@@ -47,22 +46,18 @@ type HistoryPost = {
 
 const getStatusMeta = (post: HistoryPost) => {
   if (post.status === "failed" || post.publish_status === "failed") {
-    return { label: "Échec", variant: "destructive" as const, icon: CircleAlert };
+    return { label: "Échec", dotColor: "bg-stamp", textColor: "text-stamp", bgColor: "bg-stamp/8 border-stamp/25", icon: CircleAlert };
   }
-
   if (post.visibility_status === "visible") {
-    return { label: "Visible", variant: "default" as const, icon: Eye };
+    return { label: "Visible", dotColor: "bg-[#27C93F]", textColor: "text-moss", bgColor: "bg-[#27C93F]/8 border-[#27C93F]/25", icon: Eye };
   }
-
   if (post.visibility_status === "hidden") {
-    return { label: "Non visible", variant: "secondary" as const, icon: EyeOff };
+    return { label: "Non visible", dotColor: "bg-mute", textColor: "text-mute", bgColor: "bg-mist border-hairline", icon: EyeOff };
   }
-
   if (post.status === "published") {
-    return { label: "À vérifier", variant: "secondary" as const, icon: Eye };
+    return { label: "À vérifier", dotColor: "bg-mute", textColor: "text-mute", bgColor: "bg-mist border-hairline", icon: Eye };
   }
-
-  return { label: "Historique", variant: "outline" as const, icon: History };
+  return { label: "Historique", dotColor: "bg-lemon", textColor: "text-moss", bgColor: "bg-lemon/8 border-lemon/25", icon: History };
 };
 
 const exportToCsv = (posts: HistoryPost[]) => {
@@ -146,113 +141,112 @@ export default function ScheduleHistoryPage() {
     };
   }, [filteredPosts]);
 
+  const statCards = [
+    { label: "Total", value: analytics.total, accent: "border-hairline" },
+    { label: "Publiées", value: analytics.published, accent: "border-[#27C93F]/30" },
+    { label: "Échecs", value: analytics.failed, accent: "border-stamp/30", valueColor: "text-stamp" },
+    { label: "Taux", value: `${analytics.rate}%`, accent: "border-lemon/30", valueColor: "text-moss" },
+  ]
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Archive</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Historique des publications</h1>
+    <div className="mx-auto w-full max-w-6xl space-y-5 py-2 px-1">
+      {/* ── Header — Studio Editorial ── */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-lemon/15 border border-lemon/25">
+            <History className="size-[18px] text-moss" />
+          </div>
+          <div>
+            <h1 className="text-xl font-extrabold tracking-tight text-ink">Historique des publications</h1>
+            <p className="text-[13px] text-mute mt-0.5">Archive complète · {posts.length} publications</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="rounded-full border-hairline text-mute hover:text-ink hover:border-lemon/30 transition-all h-9 px-4 text-xs font-semibold">
             <Link href="/schedule">
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-3.5" />
               Retour au planning
             </Link>
           </Button>
-          <Button onClick={() => exportToCsv(filteredPosts)} variant="secondary" disabled={filteredPosts.length === 0}>
-            <Download className="size-4" />
+          <Button
+            onClick={() => exportToCsv(filteredPosts)}
+            disabled={filteredPosts.length === 0}
+            className="rounded-full h-9 px-4 text-xs font-bold bg-ink text-lemon hover:bg-ink/90 transition-all"
+          >
+            <Download className="size-3.5" />
             Export CSV
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{analytics.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Publiées</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold text-foreground">{analytics.published}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Échec</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold text-destructive">{analytics.failed}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Taux</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{analytics.rate}%</p>
-          </CardContent>
-        </Card>
+      {/* ── Stats — editorial tiles ── */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        {statCards.map((stat) => (
+          <div key={stat.label} className={cn(
+            "rounded-2xl border bg-white dark:bg-card p-4",
+            stat.accent
+          )}>
+            <p className="tag-code text-mute">{stat.label}</p>
+            <p className={cn("text-3xl font-extrabold tracking-tight mt-2", stat.valueColor || "text-ink")}>
+              {loading ? "—" : stat.value}
+            </p>
+          </div>
+        ))}
       </div>
 
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Filter className="size-4" />
-            Filtres
-          </div>
+      {/* ── Filters — pill style ── */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-hairline bg-white dark:bg-card p-4 md:flex-row md:items-center">
+        <div className="flex items-center gap-1.5 text-mute">
+          <Filter className="size-3.5" />
+          <span className="tag-code">Filtres</span>
+        </div>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <div className="flex flex-wrap gap-2">
-              {(["all", "published", "failed"] as const).map((value) => (
-                <Button
-                  key={value}
-                  variant={statusFilter === value ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter(value)}
-                >
-                  {value === "all" ? "Tous" : value === "published" ? "Publiées" : "Échec"}
-                </Button>
-              ))}
-            </div>
+        <div className="flex flex-wrap gap-2 md:ml-2">
+          {(["all", "published", "failed"] as const).map((value) => (
+            <button
+              key={value}
+              onClick={() => setStatusFilter(value)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-[12px] font-bold transition-all duration-200",
+                statusFilter === value
+                  ? "bg-ink text-lemon"
+                  : "border border-hairline bg-white dark:bg-card text-mute hover:bg-mist hover:text-ink"
+              )}
+            >
+              {value === "all" ? "Toutes" : value === "published" ? "Publiées" : "Échecs"}
+            </button>
+          ))}
+        </div>
 
-            <div className="ml-auto w-full max-w-xs">
-              <select
-                value={channelFilter}
-                onChange={(event) => setChannelFilter(event.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="all">Tous les canaux</option>
-                {channels.map((channel) => (
-                  <option key={channel.id} value={channel.id}>{channel.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="md:ml-auto">
+          <select
+            value={channelFilter}
+            onChange={(event) => setChannelFilter(event.target.value)}
+            className="flex h-8 w-full rounded-full border border-hairline bg-white dark:bg-card px-3 py-1 text-[12px] font-semibold text-ink outline-none focus:border-lemon/40 transition-colors min-w-[160px]"
+          >
+            <option value="all">Tous les canaux</option>
+            {channels.map((channel) => (
+              <option key={channel.id} value={channel.id}>{channel.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
+      {/* ── Content ── */}
       {loading ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">Chargement de l’historique…</CardContent>
-        </Card>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 rounded-2xl border border-hairline bg-mist/20 animate-pulse" />
+          ))}
+        </div>
       ) : filteredPosts.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Aucune publication trouvée</CardTitle>
-            <CardDescription>Changez les filtres ou publiez une nouvelle story pour alimenter l’historique.</CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-hairline bg-mist/10">
+          <p className="font-bold text-ink">Aucune publication trouvée</p>
+          <p className="text-sm text-mute">Changez les filtres ou publiez une nouvelle story pour alimenter l'historique.</p>
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredPosts.map((post) => {
             const channel = post.user_channels?.channel_types;
             const statusMeta = getStatusMeta(post);
@@ -261,11 +255,18 @@ export default function ScheduleHistoryPage() {
             const preview = stripRichTextFormatting(post.content || "") || "Aucun contenu";
 
             return (
-              <Link key={post.id} href={`/schedule/history/${post.id}`} className="block">
-                <Card className="overflow-hidden transition-colors hover:border-primary/40">
-                  <CardContent className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-start">
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap items-center gap-3">
+              <Link key={post.id} href={`/schedule/history/${post.id}`} className="group block">
+                <div className={cn(
+                  "rounded-2xl border overflow-hidden transition-all duration-200",
+                  "border-hairline bg-white dark:bg-card",
+                  "hover:border-lemon/30 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(198,255,26,0.15)]"
+                )}>
+                  {/* Top accent line */}
+                  <div className="h-[2px] w-full post-card-accent" />
+
+                  <div className="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_200px] md:items-start">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2.5">
                         {channel ? (
                           <ChannelAvatar
                             type={channel.type as ChannelTypeEnum}
@@ -275,57 +276,55 @@ export default function ScheduleHistoryPage() {
                           />
                         ) : null}
 
-                        <Badge variant={statusMeta.variant} className="flex items-center gap-1.5">
-                          <StatusIcon className="size-3" />
-                          {statusMeta.label}
-                        </Badge>
+                        {/* Status pill */}
+                        <div className={cn(
+                          "flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+                          statusMeta.bgColor
+                        )}>
+                          <span className={cn("size-1.5 rounded-full", statusMeta.dotColor)} />
+                          <span className={cn("tag-code", statusMeta.textColor)}>{statusMeta.label}</span>
+                        </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <div>
+                        <p className="tag-code text-mute mb-1">
                           {format(date, "d MMMM yyyy", { locale: fr })}
                         </p>
-                        <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-foreground/90">
+                        <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
                           {preview}
                         </p>
                       </div>
                     </div>
 
-                    <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CalendarClock className="size-4" />
+                    <div className="space-y-3 rounded-xl border border-hairline bg-mist/20 p-4">
+                      <div className="flex items-center gap-1.5 text-xs text-mute">
+                        <CalendarClock className="size-3.5" />
                         <span>{format(date, "d MMM yyyy, HH:mm", { locale: fr })}</span>
                       </div>
 
                       {post.published_url ? (
-                        <Button asChild variant="outline" className="w-full justify-between">
-                          <a href={post.published_url} target="_blank" rel="noreferrer noopener">
-                            <span>Voir la publication</span>
-                            <ArrowUpRight className="size-4" />
-                          </a>
-                        </Button>
+                        <a
+                          href={post.published_url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="flex items-center justify-between w-full rounded-xl border border-hairline bg-white dark:bg-card px-3 py-2 text-xs font-semibold text-ink hover:border-lemon/30 hover:bg-lemon/5 transition-all"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span>Voir la publication</span>
+                          <ArrowUpRight className="size-3.5" />
+                        </a>
                       ) : (
-                        <div className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
+                        <div className="rounded-xl border border-dashed border-hairline px-3 py-2 text-xs text-mute">
                           Aucun lien public
                         </div>
                       )}
 
-                      {post.provider_owner_type || post.provider_owner_id ? (
-                        <div className="rounded-md border bg-background/50 px-3 py-2 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-2 font-medium text-foreground">
-                            <Link2 className="size-3.5" />
-                            Propriétaire
-                          </div>
-                          <p className="mt-1">
-                            {post.provider_owner_type || "Compte"} · {post.provider_owner_id || "inconnu"}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <div className="pt-2 text-xs font-medium text-primary">Voir le détail →</div>
+                      <div className="tag-code text-moss group-hover:text-ink transition-colors">
+                        Voir le détail →
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </Link>
             );
           })}

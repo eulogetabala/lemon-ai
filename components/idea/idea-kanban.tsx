@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { MoreHorizontal, Plus } from "lucide-react"
+import { MoreHorizontal, Plus, Lightbulb, Sparkles } from "lucide-react"
 import {
     DragDropContext,
     Droppable,
@@ -25,6 +25,13 @@ type Column = {
     id: string
     title: string
     ideas: IdeaType[]
+}
+
+const columnColors: Record<string, string> = {
+    "À explorer": "bg-lemon/20 text-moss border-lemon/30",
+    "En cours": "bg-[#E8F0FE] text-[#1A4A8A] border-[#1A4A8A]/20",
+    "Validée": "bg-[#E8F5E9] text-moss border-moss/20",
+    "Archivée": "bg-mist text-mute border-hairline",
 }
 
 const IdeaKanban = () => {
@@ -247,20 +254,37 @@ const IdeaKanban = () => {
         });
     }
 
+    const totalIdeas = columns.reduce((sum, col) => sum + col.ideas.length, 0)
+
     return (
         <>
             <div className="flex flex-col overflow-hidden">
-                <header className="flex items-center justify-between px-2 pt-4 pb-3">
-                    <div>
-                        <h1 className="text-lg font-bold tracking-tight text-foreground">Idées</h1>
-                        <p className="text-xs text-foreground/40 mt-0.5">
-                            Capturez et organisez vos idées de contenu
-                        </p>
+                {/* ── Studio Editorial Header ── */}
+                <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-1 pt-2 pb-4">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-3">
+                            <div className="flex size-9 items-center justify-center rounded-xl bg-lemon/15 border border-lemon/25">
+                                <Lightbulb className="size-[18px] text-moss" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-extrabold tracking-tight text-foreground">Idées</h1>
+                                <p className="text-[13px] text-mute mt-0.5">
+                                    Capturez et organisez vos idées de contenu
+                                </p>
+                            </div>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2.5">
+                        {/* Stats pill */}
+                        <div className="hidden sm:flex items-center gap-2 rounded-full border border-hairline bg-white dark:bg-mist/10 px-3 py-1.5">
+                            <span className="size-2 rounded-full bg-lemon animate-pulse-soft" />
+                            <span className="tag-code text-mute">
+                                {totalIdeas} idée{totalIdeas !== 1 ? 's' : ''} · {columns.length} colonnes
+                            </span>
+                        </div>
                         <GenerateIdeasPopover onGenerated={handleGeneratedIdea} />
                         <Button
-                            className="rounded-full h-8 px-4 text-xs gap-1.5 font-semibold"
+                            className="rounded-full h-9 px-4 text-xs gap-1.5 font-bold bg-lemon text-ink hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(198,255,26,0.4)] hover:-translate-y-0.5 transition-all duration-200"
                             onClick={() => handleAddIdea(columns[0]?.id ?? "")}
                         >
                             <Plus className="h-3.5 w-3.5" />
@@ -270,15 +294,15 @@ const IdeaKanban = () => {
                 </header>
 
 
-                <div className="h-[calc(100vh-120px)]">
-                    <div className="kanban--board relative py-4 flex-1 h-full overflow-hidden">
+                <div className="h-[calc(100vh-160px)]">
+                    <div className="kanban--board relative flex-1 h-full overflow-hidden">
                         {isPending ? (
                             <div className="flex gap-3 w-full h-full items-start">
                                 {[1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="shrink-0 w-[270px] flex flex-col h-full min-h-0
-                                    rounded-2xl border border-white/8 bg-white/[0.02] dark:bg-[#0d1526]/60 p-3">
+                                    <div key={i} className="shrink-0 w-[280px] flex flex-col h-full min-h-0
+                                    rounded-2xl border border-hairline bg-white dark:bg-mist/5 p-3">
                                         <div className="flex items-center justify-between pb-3 px-1">
-                                            <Skeleton className="h-4 w-20 rounded-full" />
+                                            <Skeleton className="h-5 w-24 rounded-full" />
                                             <Skeleton className="h-5 w-6 rounded-full" />
                                         </div>
                                         <div className="flex-1 space-y-2.5">
@@ -296,25 +320,31 @@ const IdeaKanban = () => {
                                         style={{ height: "100%" }}
                                         className="flex gap-3 w-full"
                                     >
-                                        {columns?.map((column) => (
+                                        {columns?.map((column) => {
+                                            const colorClass = columnColors[column.title] ?? "bg-mist text-mute border-hairline"
+                                            return (
                                             <div
                                                 key={column.id}
-                                                className="shrink-0 w-[270px] flex flex-col h-full min-h-0
-                                                rounded-2xl border border-white/[0.07] bg-white/[0.025] dark:bg-[#0a1120]/50 p-3"
+                                                className="shrink-0 w-[280px] flex flex-col h-full min-h-0
+                                                rounded-2xl border border-hairline bg-white/80 dark:bg-mist/5 p-3"
                                             >
-                                                <div className="flex items-center justify-between px-2 pt-2 pb-3">
+                                                {/* Column header */}
+                                                <div className="flex items-center justify-between px-2 pt-1 pb-3">
                                                     <div className="flex items-center gap-2">
-                                                        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/50">
+                                                        <span className={cn(
+                                                            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 tag-code",
+                                                            colorClass
+                                                        )}>
                                                             {column.title}
-                                                        </h3>
-                                                        <span className="inline-flex items-center justify-center size-5 rounded-full bg-white/8 text-[10px] font-bold text-foreground/40">
+                                                        </span>
+                                                        <span className="inline-flex items-center justify-center size-5 rounded-full bg-mist text-[10px] font-bold text-mute tabular-nums">
                                                             {column.ideas.length}
                                                         </span>
                                                     </div>
                                                     <Button
                                                         size="icon"
                                                         variant="ghost"
-                                                        className="size-6 rounded-lg hover:bg-white/8"
+                                                        className="size-7 rounded-lg hover:bg-mist text-mute hover:text-ink transition-colors"
                                                         onClick={() => handleAddIdea(column.id)}
                                                     >
                                                         <Plus className="w-3.5 h-3.5" />
@@ -330,7 +360,7 @@ const IdeaKanban = () => {
                                                             className={cn(
                                                                 "flex-1 overflow-y-auto overflow-x-hidden p-1 transition-all duration-200 min-h-0 rounded-xl",
                                                                 snapshot.isDraggingOver
-                                                                    ? "bg-primary/8 ring-1 ring-primary/25 ring-inset"
+                                                                    ? "bg-lemon/8 ring-1 ring-lemon/25 ring-inset"
                                                                     : "bg-transparent",
                                                             )}
                                                         >
@@ -348,9 +378,10 @@ const IdeaKanban = () => {
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
                                                     className={cn(
-                                                        "group cursor-pointer! shadow-sm rounded-sm! active:cursor-grabbing transform transition-all",
+                                                        "group cursor-pointer! rounded-xl! border-hairline! bg-white! dark:bg-card! active:cursor-grabbing transform transition-all duration-200",
+                                                        "hover:border-lemon/30! hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(198,255,26,0.2)]",
                                                         snapshot.isDragging &&
-                                                        "scale-95 rotate-1 shadow-lg",
+                                                        "scale-[0.97] rotate-1 shadow-lg border-lemon/40!",
                                                     )}
                                                     onClick={() => handleEditIdea(idea, column.id)}
                                                 >
@@ -362,8 +393,7 @@ const IdeaKanban = () => {
                                                                         key={index}
                                                                         src={image.url}
                                                                         alt={idea.title}
-                                                                        className="w-full h-12 rounded object-cover 
-                                    border"
+                                                                        className="w-full h-12 rounded-lg object-cover border border-hairline"
                                                                     />
                                                                 ))}
                                                             </div>
@@ -371,14 +401,14 @@ const IdeaKanban = () => {
                                                         <CardHeader className="mb-1 p-0">
                                                             <div className="flex items-start justify-between">
                                                                 <div>
-                                                                    <h4 className="font-semibold text-sm">{idea.title}</h4>
+                                                                    <h4 className="font-bold text-sm text-ink">{idea.title}</h4>
                                                                 </div>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger>
                                                                         <Button
                                                                             size="icon"
                                                                             variant="ghost"
-                                                                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 rounded-lg hover:bg-mist transition-all"
                                                                         >
                                                                             <MoreHorizontal className="h-3.5 w-3.5" />
                                                                         </Button>
@@ -405,7 +435,7 @@ const IdeaKanban = () => {
                                                         </CardHeader>
 
                                                         {idea.description && (
-                                                            <p className="text-xs text-muted-foreground line-clamp-2">
+                                                            <p className="text-xs text-mute line-clamp-2 leading-relaxed">
                                                                 {idea.description}
                                                             </p>
                                                         )}
@@ -418,7 +448,7 @@ const IdeaKanban = () => {
 
                                     <button
                                         onClick={() => handleAddIdea(column.id)}
-                                        className="w-full h-10 mt-2 rounded-xl border border-dashed border-white/10 text-xs text-foreground/30 hover:text-foreground/60 hover:border-white/20 hover:bg-white/[0.03] transition-all duration-200 flex items-center justify-center gap-1.5"
+                                        className="w-full h-10 mt-2 rounded-xl border border-dashed border-hairline text-xs text-mute hover:text-ink hover:border-lemon/40 hover:bg-lemon/5 transition-all duration-200 flex items-center justify-center gap-1.5"
                                     >
                                         <Plus className="h-3.5 w-3.5" />
                                         Nouvelle idée
@@ -430,7 +460,7 @@ const IdeaKanban = () => {
                                                 </Droppable>
                                             </div>
 
-                                        ))}
+                                        )})}
                                     </div>
                                 </DragDropContext>
                             </div>
