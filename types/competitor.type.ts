@@ -47,6 +47,7 @@ export interface CompetitorPost {
   platform: CompetitorPlatformKey
   content: string
   mediaUrl?: string | null
+  postUrl?: string | null
   publishedAt: string
   likes: number
   comments: number
@@ -74,6 +75,8 @@ export type CompetitorDetail = {
   stats: CompetitorStat[]
   prevStats: CompetitorStat[]
   posts: CompetitorPost[]
+  allStats: CompetitorStat[]
+  allPosts: CompetitorPost[]
 }
 
 export type CreateCompetitorInput = {

@@ -420,16 +420,22 @@ const previews: Record<
   ChannelKey,
   {
     channelLabel: string;
+    badge: string;
     metric: string;
     charCount: number;
     charMax: number;
     format: string;
     body: ReactNode;
+    attachment: string;
+    checks: string[];
   }
 > = {
   linkedin: {
+    channelLabel: "LinkedIn",
     badge: "Simulation en direct · LinkedIn",
     metric: "1 420 / 3 000 caractères",
+    charCount: 1420,
+    charMax: 3000,
     format: "Post long + carrousel PDF",
     body: (
       <>
@@ -454,8 +460,11 @@ const previews: Record<
     ],
   },
   x: {
+    channelLabel: "X (Twitter)",
     badge: "Simulation en direct · X (Twitter)",
     metric: "264 / 280 caractères · tweet 1/4",
+    charCount: 264,
+    charMax: 280,
     format: "Thread de 4 tweets",
     body: (
       <>
@@ -478,8 +487,11 @@ const previews: Record<
     ],
   },
   instagram: {
+    channelLabel: "Instagram",
     badge: "Simulation en direct · Instagram",
     metric: "840 / 2 200 caractères · 8 hashtags",
+    charCount: 840,
+    charMax: 2200,
     format: "Carrousel 1080 × 1350",
     body: (
       <>
@@ -503,8 +515,11 @@ const previews: Record<
     ],
   },
   tiktok: {
+    channelLabel: "TikTok",
     badge: "Simulation en direct · TikTok",
     metric: "Script vidéo · 28 secondes",
+    charCount: 0,
+    charMax: 0,
     format: "Vertical 9:16",
     body: (
       <>

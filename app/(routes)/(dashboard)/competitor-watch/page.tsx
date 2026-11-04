@@ -115,14 +115,26 @@ function AddCompetitorDialog({
           Ajouter un concurrent
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md rounded-2xl border-hairline">
-        <DialogHeader>
-          <DialogTitle className="font-extrabold tracking-tight">Nouveau concurrent</DialogTitle>
-          <DialogDescription className="text-mute">
-            Saisissez la page du concurrent à surveiller. Ses données publiques seront synchronisées mois par mois.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 pt-2">
+      <DialogContent className="max-w-[720px] rounded-[30px] border border-[#E8E8E2] bg-white p-0 shadow-[0_30px_70px_rgba(17,20,16,0.12)] sm:max-w-[720px]">
+        <div className="px-6 pb-6 pt-5 sm:px-7">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center justify-between gap-4">
+              <DialogTitle className="text-[2.1rem] font-black leading-none tracking-[-0.06em] text-ink">Nouveau concurrent</DialogTitle>
+              <button
+                type="button"
+                aria-label="Fermer"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-ink/70 transition hover:bg-[#F4F5F1] hover:text-ink"
+                onClick={() => setOpen(false)}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <DialogDescription className="max-w-[580px] text-base leading-relaxed text-ink/70">
+              Saisissez la page du concurrent à surveiller. Ses données publiques seront synchronisées mois par mois.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-ink">Nom de la marque</label>
             <Input id="comp-name" placeholder="ex : Nike" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl border-hairline" />
@@ -189,14 +201,15 @@ function AddCompetitorDialog({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)} className="rounded-full border-hairline">
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" onClick={() => setOpen(false)} className="h-12 min-w-[130px] rounded-full border border-[#E8E8E2] bg-[#F2F3EE] text-base font-semibold text-ink hover:bg-[#E8EAE2]">
               Annuler
             </Button>
-            <Button onClick={handleAdd} disabled={!name.trim() || platforms.length === 0 || isSubmitting} className="rounded-full bg-ink text-lemon font-bold hover:bg-ink/90">
+            <Button onClick={handleAdd} disabled={!name.trim() || platforms.length === 0 || isSubmitting} className="h-12 min-w-[130px] rounded-full bg-[#111410] text-base font-bold text-[#C6FF1A] hover:bg-[#111410]/90">
               {isSubmitting ? "Synchronisation…" : "Ajouter"}
             </Button>
           </div>
+        </div>
         </div>
       </DialogContent>
     </Dialog>

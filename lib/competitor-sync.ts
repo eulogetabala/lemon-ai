@@ -8,6 +8,7 @@ type FetchedPost = {
   providerPostId: string
   content: string
   mediaUrl?: string | null
+  postUrl?: string | null
   publishedAt: string
   likes: number
   comments: number
@@ -48,7 +49,16 @@ async function fetchJson(url: string, init: RequestInit = {}) {
 }
 
 function usernameFromHandle(handle: string | null) {
-  return (handle ?? "").trim().replace(/^@/, "")
+  const value = (handle ?? "").trim().replace(/^@/, "")
+  if (!value) return ""
+
+  const urlMatch = value.match(/^(?:https?:\/\/)?(?:www\.)?(?:facebook\.com|x\.com|twitter\.com|instagram\.com|linkedin\.com|tiktok\.com|threads\.net|youtube\.com)\/(?:@)?([^/?#]+)$/i)
+  if (urlMatch?.[1]) return urlMatch[1].replace(/\/$/, "")
+
+  const pathMatch = value.match(/\/([^/?#]+)$/)
+  if (pathMatch?.[1]) return pathMatch[1].replace(/\/$/, "")
+
+  return value
 }
 
 export function buildProfileUrl(platform: string, handle: string | null): string | null {
@@ -102,6 +112,7 @@ async function fetchTwitterPage(row: CompetitorPlatformRow, cred: Credential): P
     providerPostId: t.id,
     content: t.text ?? "",
     mediaUrl: null,
+    postUrl: `https://x.com/${name}/status/${t.id}`,
     publishedAt: t.created_at ?? new Date().toISOString(),
     likes: t.public_metrics?.like_count ?? 0,
     comments: t.public_metrics?.reply_count ?? 0,
@@ -119,51 +130,343 @@ function extractFacebookPageId(url: string | null) {
   return match ? match[1] : null
 }
 
+async function fetchPublicFacebookInfo(slug: string): Promise<number | undefined> {
+  if (!slug) return undefined
+
+  try {
+    const res = await fetch(`https://www.facebook.com/${encodeURIComponent(slug)}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+    })
+
+    if (!res.ok) return undefined
+    const html = await res.text()
+
+    const descriptionMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i)
+    const description = descriptionMatch?.[1] ?? ""
+    const cleaned = description.replace(/&nbsp;|&#xA0;|&#160;|&#x202f;|&#8239;/gi, " ")
+      .replace(/&amp;/gi, "&")
+
+    const patterns = [
+      /([0-9][0-9\s\u202f\.,]+)\s*(?:followers|abonnés|people like this)/i,
+      /([0-9][0-9\s\u202f\.,]+)\s*(?:followers|abonnés)/i,
+      /([0-9][0-9\s\u202f\.,]+)\s*(?:en parlent)/i,
+    ]
+
+    for (const pattern of patterns) {
+      const match = cleaned.match(pattern)
+      if (match?.[1]) {
+        const raw = match[1].replace(/\s|\u202f|\./g, "").replace(",", "")
+        const value = Number(raw)
+        if (Number.isFinite(value)) return value
+      }
+    }
+
+    for (const pattern of [
+      /\"fan_count\"\s*:\s*(\d+)/i,
+      /\"followers_count\"\s*:\s*(\d+)/i,
+      /\"follow_count\"\s*:\s*(\d+)/i,
+      /\"page_fan_count\"\s*:\s*(\d+)/i,
+    ]) {
+      const match = html.match(pattern)
+      if (match?.[1]) {
+        const value = Number(match[1])
+        if (Number.isFinite(value)) return value
+      }
+    }
+  } catch {
+    // Best-effort public fallback only.
+  }
+
+  return undefined
+}
+
+// ─── Public Facebook post recovery ────────────────────────────────────────────
+// Facebook embeds the most recent timeline posts as JSON inside
+// <script type="application/json"> blocks, so real posts (content, date, url)
+// can be recovered without the Graph API. This is intentionally limited: the
+// logged-out page only exposes the latest posts, not the full history.
+
+function unixToIso(seconds: number): string {
+  const ms = seconds > 1e12 ? seconds : seconds * 1000
+  const date = new Date(ms)
+  return Number.isFinite(date.getTime()) ? date.toISOString() : new Date().toISOString()
+}
+
+function walkJson(node: unknown, visit: (obj: Record<string, any>) => void): void {
+  if (Array.isArray(node)) {
+    for (const item of node) walkJson(item, visit)
+    return
+  }
+  if (!node || typeof node !== "object") return
+  visit(node as Record<string, any>)
+  for (const value of Object.values(node as Record<string, any>)) walkJson(value, visit)
+}
+
+function extractEngagement(node: unknown): { likes: number; comments: number; shares: number } {
+  let likes = 0
+  let comments = 0
+  let shares = 0
+  const scan = (n: unknown): void => {
+    if (Array.isArray(n)) {
+      for (const item of n) scan(item)
+      return
+    }
+    if (!n || typeof n !== "object") return
+    const obj = n as Record<string, any>
+    if (!likes && typeof obj.reaction_count === "number" && obj.reaction_count > 0) likes = obj.reaction_count
+    if (!comments && typeof obj.comment_count === "number" && obj.comment_count > 0) comments = obj.comment_count
+    if (!shares && typeof obj.share_count === "number" && obj.share_count > 0) shares = obj.share_count
+    for (const value of Object.values(obj)) scan(value)
+  }
+  scan(node)
+  return { likes, comments, shares }
+}
+
+async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
+  if (!slug) return []
+
+  try {
+    const res = await fetch(`https://www.facebook.com/${encodeURIComponent(slug)}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+    })
+    if (!res.ok) return []
+    const html = await res.text()
+
+    type Story = {
+      url: string | null
+      postId: string | null
+      createdAt: number
+      likes: number
+      comments: number
+      shares: number
+    }
+    type Message = { text: string; url: string | null; postId: string | null }
+
+    const stories: Story[] = []
+    const messages: Message[] = []
+
+    const scriptRe = /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g
+    let match: RegExpExecArray | null
+    while ((match = scriptRe.exec(html)) !== null) {
+      const body = match[1]
+      if (!body.includes("creation_time")) continue
+      let data: unknown
+      try {
+        data = JSON.parse(body)
+      } catch {
+        continue
+      }
+
+      walkJson(data, (obj) => {
+        const url =
+          typeof obj.permalink_url === "string"
+            ? obj.permalink_url
+            : typeof obj.url === "string"
+              ? obj.url
+              : null
+        const postId = typeof obj.post_id === "string" ? obj.post_id : null
+
+        if (typeof obj.creation_time === "number" && url) {
+          const engagement = extractEngagement(obj)
+          stories.push({
+            url,
+            postId,
+            createdAt: obj.creation_time,
+            likes: engagement.likes,
+            comments: engagement.comments,
+            shares: engagement.shares,
+          })
+        }
+
+        const msg = obj.message
+        if (msg && typeof msg === "object" && typeof msg.text === "string" && msg.text.trim()) {
+          messages.push({ text: msg.text, url, postId })
+        }
+      })
+    }
+
+    const byUrl = new Map<string, Story>()
+    for (const story of stories) {
+      if (!story.url) continue
+      const existing = byUrl.get(story.url)
+      if (!existing) {
+        byUrl.set(story.url, story)
+        continue
+      }
+      // Some references carry post_id, others only the permalink url. Merge so
+      // the same post is never stored twice with two different ids.
+      existing.postId = existing.postId ?? story.postId
+      existing.likes = existing.likes || story.likes
+      existing.comments = existing.comments || story.comments
+      existing.shares = existing.shares || story.shares
+    }
+
+    const byPostId = new Map<string, Story>()
+    for (const story of byUrl.values()) {
+      if (story.postId && !byPostId.has(story.postId)) byPostId.set(story.postId, story)
+    }
+
+    const seen = new Set<string>()
+    const posts: FetchedPost[] = []
+    for (const message of messages) {
+      const story =
+        byUrl.get(message.url ?? "") ??
+        (message.postId ? byPostId.get(message.postId) : undefined)
+      if (!story) continue
+      const key = story.postId ?? story.url ?? message.text
+      if (seen.has(key)) continue
+      seen.add(key)
+      posts.push({
+        providerPostId: key,
+        content: message.text,
+        mediaUrl: null,
+        postUrl: story.url,
+        publishedAt: unixToIso(story.createdAt),
+        likes: story.likes,
+        comments: story.comments,
+        shares: story.shares,
+        views: 0,
+        impressions: 0,
+      })
+    }
+
+    return posts
+  } catch {
+    return []
+  }
+}
+
+function facebookSlug(row: CompetitorPlatformRow): string {
+  const fromHandle = usernameFromHandle(row.handle)
+  if (fromHandle) return fromHandle
+
+  if (row.profile_url) {
+    try {
+      return usernameFromHandle(new URL(row.profile_url).pathname)
+    } catch {
+      return ""
+    }
+  }
+
+  return ""
+}
+
+/** Public follower lookup used as a display fallback when the provider API is unavailable. */
+export async function fetchPublicFollowerCount(
+  platform: string,
+  handle: string | null,
+  profileUrl: string | null,
+): Promise<number | undefined> {
+  if (platform !== "facebook") return undefined
+  const slug = facebookSlug({ id: "", platform, handle, profile_url: profileUrl })
+  if (!slug) return undefined
+  return fetchPublicFacebookInfo(slug)
+}
+
 async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
+  const slug = facebookSlug(row)
+
+  const publicFallback = async (note: string): Promise<FetchedPage> => {
+    const [publicFollowers, publicPosts] = await Promise.all([
+      fetchPublicFacebookInfo(slug),
+      fetchPublicFacebookPosts(slug),
+    ])
+    return { followers: publicFollowers, posts: publicPosts, note }
+  }
+
   if (!cred?.token) {
-    return { posts: [], note: "Connectez votre compte Facebook pour autoriser la lecture des pages publiques." }
+    return publicFallback(
+      "Données publiques Facebook récupérées sans token OAuth — publications limitées aux plus récentes.",
+    )
   }
 
-  const auth = { headers: { Authorization: `Bearer ${cred.token}` } }
-  let pageId = extractFacebookPageId(row.profile_url)
-  let followers: number | undefined
+  try {
+    const auth = { headers: { Authorization: `Bearer ${cred.token}` } }
+    let pageId = extractFacebookPageId(row.profile_url)
+    let followers: number | undefined
 
-  if (!pageId) {
-    const q = usernameFromHandle(row.handle)
-    if (!q) return { posts: [], note: "Nom ou URL Facebook manquant." }
-    const search = await fetchJson(
-      `https://graph.facebook.com/v19.0/search?type=page&q=${encodeURIComponent(q)}&fields=id,name,fan_count&limit=1`,
+    if (!pageId) {
+      const q = usernameFromHandle(row.handle)
+      if (!q) return publicFallback("Nom ou URL Facebook manquant.")
+      const search = await fetchJson(
+        `https://graph.facebook.com/v19.0/search?type=page&q=${encodeURIComponent(q)}&fields=id,name,fan_count&limit=1`,
+        auth,
+      )
+      const page = search?.data?.[0]
+      if (!page) {
+        return publicFallback("Page Facebook trouvée via fallback public, mais pas via l’API Graph.")
+      }
+      pageId = page.id
+      followers = page.fan_count
+    } else {
+      const page = await fetchJson(
+        `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,fan_count`,
+        auth,
+      )
+      followers = page?.fan_count
+    }
+
+    const feed = await fetchJson(
+      `https://graph.facebook.com/v19.0/${pageId}/feed?fields=id,message,created_time,full_picture,permalink_url,shares,likes.summary(true),comments.summary(true)&limit=100`,
       auth,
     )
-    const page = search?.data?.[0]
-    if (!page) return { posts: [], note: "Page Facebook introuvable." }
-    pageId = page.id
-    followers = page.fan_count
-  } else {
-    const page = await fetchJson(
-      `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,fan_count`,
-      auth,
-    )
-    followers = page?.fan_count
+    const posts: FetchedPost[] = (feed?.data ?? []).map((p: any) => ({
+      providerPostId: p.id,
+      content: p.message ?? "",
+      mediaUrl: p.full_picture ?? null,
+      postUrl: p.permalink_url ?? null,
+      publishedAt: p.created_time ?? new Date().toISOString(),
+      likes: p.likes?.summary?.total_count ?? 0,
+      comments: p.comments?.summary?.total_count ?? 0,
+      shares: p.shares?.count ?? 0,
+      views: 0,
+      impressions: 0,
+    }))
+
+    if (posts.length > 0) return { followers, posts }
+
+    // Graph answered but returned no posts — the token can read the page
+    // audience but not a competitor feed. Complete with public scraping.
+    const publicPosts = await fetchPublicFacebookPosts(slug)
+    const publicFollowers =
+      typeof followers === "number" && followers > 0
+        ? followers
+        : await fetchPublicFacebookInfo(slug)
+    return {
+      followers: publicFollowers,
+      posts: publicPosts,
+      note:
+        publicPosts.length > 0
+          ? "Fil complet indisponible (Page Public Content Access requis) — publications récentes lues sur la page publique."
+          : "Aucune publication récupérée (token sans accès au fil concurrent).",
+    }
+  } catch (graphError) {
+    // The Graph API frequently rejects public-page lookups (400/403). Never lose
+    // the whole sync for that: fall back to the public page data instead.
+    const message = (graphError as Error).message
+    const [publicFollowers, publicPosts] = await Promise.all([
+      fetchPublicFacebookInfo(slug),
+      fetchPublicFacebookPosts(slug),
+    ])
+    return {
+      followers: publicFollowers,
+      posts: publicPosts,
+      note:
+        publicPosts.length > 0
+          ? `API Graph indisponible (${message}) — publications récentes lues sur la page publique.`
+          : publicFollowers
+            ? `API Graph indisponible (${message}) — abonnés lus sur la page publique.`
+            : `API Graph indisponible (${message}).`,
+    }
   }
-
-  const feed = await fetchJson(
-    `https://graph.facebook.com/v19.0/${pageId}/feed?fields=id,message,created_time,full_picture,shares,likes.summary(true),comments.summary(true)&limit=100`,
-    auth,
-  )
-  const posts: FetchedPost[] = (feed?.data ?? []).map((p: any) => ({
-    providerPostId: p.id,
-    content: p.message ?? "",
-    mediaUrl: p.full_picture ?? null,
-    publishedAt: p.created_time ?? new Date().toISOString(),
-    likes: p.likes?.summary?.total_count ?? 0,
-    comments: p.comments?.summary?.total_count ?? 0,
-    shares: p.shares?.count ?? 0,
-    views: 0,
-    impressions: 0,
-  }))
-
-  return { followers, posts }
 }
 
 async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
@@ -191,7 +494,7 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
   }
 
   // 2. Business Discovery — read the competitor's public profile + media.
-  const fields = `business_discovery.username(${username}){followers_count,media_count,media.limit(50){id,caption,media_type,media_url,timestamp,like_count,comments_count}}`
+  const fields = `business_discovery.username(${username}){followers_count,media_count,media.limit(50){id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count}}`
   const discovery = await fetchJson(
     `https://graph.facebook.com/v19.0/${igId}?fields=${encodeURIComponent(fields)}`,
     auth,
@@ -206,6 +509,7 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
       m.media_type === "IMAGE" || m.media_type === "VIDEO" || m.media_type === "CAROUSEL_ALBUM"
         ? m.media_url ?? null
         : null,
+    postUrl: m.permalink ?? null,
     publishedAt: m.timestamp ?? new Date().toISOString(),
     likes: m.like_count ?? 0,
     comments: m.comments_count ?? 0,
@@ -261,10 +565,12 @@ async function fetchLinkedinPage(row: CompetitorPlatformRow, cred: Credential): 
   const posts: FetchedPost[] = (postsData?.elements ?? []).map((p: any) => {
     const share = p.specificContent?.["com.linkedin.ugc.ShareContent"]
     const media = share?.media?.[0]
+    const id = p.id ?? ""
     return {
-      providerPostId: p.id,
+      providerPostId: id,
       content: share?.shareCommentary?.text ?? "",
       mediaUrl: media?.originalUrl ?? null,
+      postUrl: p.permalinkUrl ?? `https://www.linkedin.com/feed/update/${id}`,
       publishedAt: p.created?.time ? new Date(p.created.time).toISOString() : new Date().toISOString(),
       likes: 0,
       comments: 0,
@@ -398,28 +704,57 @@ export async function syncCompetitorPlatform(
     })
     .eq("id", row.id)
 
-  // Upsert real posts, deduplicated by provider post id.
+  // Upsert real posts, deduplicated by provider post id. Some live databases
+  // predate the `post_url` column — drop any unknown column and retry so the
+  // sync never silently loses posts on a schema drift.
   for (const post of page.posts) {
-    await supabase.from("competitor_posts").upsert(
-      {
-        platform_id: row.id,
-        provider_post_id: post.providerPostId,
-        content: post.content,
-        media_url: post.mediaUrl ?? null,
-        published_at: post.publishedAt,
-        likes: post.likes,
-        comments: post.comments,
-        shares: post.shares,
-        views: post.views,
-        engagement_rate: postEngagementRate(post),
-        synced_at: new Date().toISOString(),
-      },
-      { onConflict: "platform_id,provider_post_id" },
-    )
+    const payload: Record<string, unknown> = {
+      platform_id: row.id,
+      provider_post_id: post.providerPostId,
+      content: post.content,
+      media_url: post.mediaUrl ?? null,
+      post_url: post.postUrl ?? null,
+      published_at: post.publishedAt,
+      likes: post.likes,
+      comments: post.comments,
+      shares: post.shares,
+      views: post.views,
+      engagement_rate: postEngagementRate(post),
+      synced_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase
+      .from("competitor_posts")
+      .upsert(payload, { onConflict: "platform_id,provider_post_id" })
+
+    if (error) {
+      const missing = error.message.match(/Could not find the '([^']+)' column/)
+      if (missing?.[1]) {
+        delete payload[missing[1]]
+        await supabase
+          .from("competitor_posts")
+          .upsert(payload, { onConflict: "platform_id,provider_post_id" })
+      }
+    }
   }
 
-  // Aggregate the fetched posts into monthly snapshots (real, per month).
   const months = aggregatePostsByMonth(page.posts)
+  const currentMonth = new Date().toISOString().slice(0, 7)
+
+  if (typeof page.followers === "number" && page.followers > 0) {
+    const currentMonthEntry = months.find((entry) => entry.month === currentMonth)
+    if (!currentMonthEntry) {
+      months.push({
+        month: currentMonth,
+        impressions: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        posts: 0,
+        engagementRate: 0,
+      })
+    }
+  }
 
   for (const agg of months) {
     await supabase.from("competitor_stats").upsert(
@@ -431,7 +766,7 @@ export async function syncCompetitorPlatform(
         comments: agg.comments,
         shares: agg.shares,
         posts: agg.posts,
-        followers: 0,
+        followers: agg.month === currentMonth && typeof page.followers === "number" ? page.followers : 0,
         engagement_rate: agg.engagementRate,
         synced_at: new Date().toISOString(),
       },

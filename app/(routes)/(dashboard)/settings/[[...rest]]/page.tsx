@@ -30,7 +30,7 @@ const SettingsPage = () => {
         <div>
           <Tabs defaultValue="channels">
             <div className="mb-6 w-full">
-              <div className="inline-flex items-center gap-0.5 rounded-full border border-hairline bg-white dark:bg-card p-0.5">
+              <TabsList className="inline-flex items-center gap-0.5 rounded-full border border-hairline bg-white dark:bg-card p-0.5 h-auto">
                 <TabsTrigger
                   value="profile"
                   className={cn(
@@ -64,7 +64,7 @@ const SettingsPage = () => {
                   <Palette className="size-3.5" />
                   Apparence
                 </TabsTrigger>
-              </div>
+              </TabsList>
             </div>
 
             <TabsContent value="profile">

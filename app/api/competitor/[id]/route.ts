@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase-server"
+import { fetchPublicFollowerCount } from "@/lib/competitor-sync"
 import {
   currentMonthKey,
   isMonthKey,
@@ -36,7 +37,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .select("*")
       .eq("competitor_id", id)
 
-    const platforms = platformRows ?? []
+    const storedPlatforms = platformRows ?? []
+
+    // Backfill a missing audience metric from the public page. A failed provider
+    // call (e.g. Graph API 400) used to leave followers at 0 forever, which made
+    // the whole overview empty even though the number is publicly available.
+    const platforms = await Promise.all(
+      storedPlatforms.map(async (p: any) => {
+        if (Number(p.followers ?? 0) > 0) return p
+        try {
+          const live = await fetchPublicFollowerCount(p.platform, p.handle, p.profile_url)
+          if (!live || live <= 0) return p
+          await supabase.from("competitor_platforms").update({ followers: live }).eq("id", p.id)
+          return { ...p, followers: live }
+        } catch {
+          return p
+        }
+      }),
+    )
+
     const platformIds = platforms.map((p) => p.id)
 
     const [{ data: statRows }, { data: postRows }] = await Promise.all([
@@ -99,6 +118,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       platform: platformById.get(p.platform_id)?.platform ?? p.platform,
       content: p.content ?? "",
       mediaUrl: p.media_url ?? null,
+      postUrl: p.post_url ?? null,
       publishedAt: p.published_at,
       likes: Number(p.likes ?? 0),
       comments: Number(p.comments ?? 0),
@@ -117,6 +137,32 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       })
       .map(mapPost)
 
+    // A real audience metric without any monthly snapshot left the overview
+    // empty. Persist a current-month snapshot so the global view has a home.
+    const currentMonth = currentMonthKey()
+    const missingSnapshot = platforms.filter(
+      (p) => Number(p.followers ?? 0) > 0 && !stats.some((s) => s.platform_id === p.id && s.month === currentMonth),
+    )
+
+    for (const platform of missingSnapshot) {
+      const snapshot = {
+        platform_id: platform.id,
+        month: currentMonth,
+        impressions: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        posts: 0,
+        followers: Number(platform.followers ?? 0),
+        engagement_rate: 0,
+        synced_at: new Date().toISOString(),
+      }
+      const { error: snapshotError } = await supabase
+        .from("competitor_stats")
+        .upsert(snapshot, { onConflict: "platform_id,month" })
+      if (!snapshotError) stats.push(snapshot)
+    }
+
     const detail: CompetitorDetail = {
       competitor: {
         id: competitor.id,
@@ -132,6 +178,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       stats: stats.filter((s) => s.month === month).map(mapStat),
       prevStats: prevMonth ? stats.filter((s) => s.month === prevMonth).map(mapStat) : [],
       posts: monthPosts,
+      allStats: stats.map(mapStat),
+      allPosts: posts.map(mapPost),
     }
 
     return NextResponse.json(detail)

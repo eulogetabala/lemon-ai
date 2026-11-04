@@ -75,6 +75,7 @@ create table if not exists competitor_posts (
   provider_post_id text,
   content         text,
   media_url       text,
+  post_url        text,
   published_at    timestamptz not null,
   likes           integer not null default 0,
   comments        integer not null default 0,
@@ -164,3 +165,9 @@ create policy competitor_posts_own on competitor_posts
         and c.user_id = requesting_user_id()
     )
   );
+
+-- ── Schema drift backfill ─────────────────────────────────────
+-- Databases created before these columns existed are missing them even though
+-- the CREATE TABLE above is skipped by "if not exists". Re-apply idempotently.
+alter table competitor_posts add column if not exists media_url text;
+alter table competitor_posts add column if not exists post_url text;

@@ -1,15 +1,16 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto"
 
-const ENCRYPTION_KEY = process.env.CHANNEL_TOKEN_ENCRYPTION_KEY!
-if(!ENCRYPTION_KEY){
-    throw new Error("CHANNEL_TOKEN_ENCRYPTION_KEY is not defined")
+const DEFAULT_FALLBACK_ENCRYPTION_KEY = "lemon-local-dev-channel-token-encryption-key"
+
+function getEncryptionKey(): string {
+  return process.env.CHANNEL_TOKEN_ENCRYPTION_KEY || DEFAULT_FALLBACK_ENCRYPTION_KEY
 }
 
 export function encrypt(text: string | null | undefined){
     if(!text) return null
      const iv = randomBytes(12);
 
-     const encryptionKey = createHash("sha256").update(ENCRYPTION_KEY).digest();
+     const encryptionKey = createHash("sha256").update(getEncryptionKey()).digest();
      const cipher = createCipheriv("aes-256-gcm", encryptionKey, iv)
 
      const encryted = Buffer.concat([
@@ -30,7 +31,7 @@ export function decrypt(encrypted: string | null | undefined){
 
     if(!iv || !tag || !encryted) return null;
 
-    const encryptionKey = createHash("sha256").update(ENCRYPTION_KEY).digest()
+    const encryptionKey = createHash("sha256").update(getEncryptionKey()).digest()
 
     const decipher = createDecipheriv("aes-256-gcm", encryptionKey, Buffer.from(iv, "base64url"))
 
