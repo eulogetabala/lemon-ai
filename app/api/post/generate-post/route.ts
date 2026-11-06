@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
         const { has, userId } = await auth();
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const canUseAI = has({ plan: "pro" }) || has({ plan: "premium" })
+        const canUseAI = has({ plan: "pro" }) || has({ plan: "team" }) || has({ plan: "enterprise" }) || has({ plan: "premium" })
         if (!canUseAI) {
-            return NextResponse.json({ error: "AI Post generation requires Pro or Premium plan" }, { status: 403 });
+            return NextResponse.json({ error: "La génération de contenu par IA nécessite le forfait Pro ou supérieur." }, { status: 403 });
         }
 
         const { action, content = "", prompt = "", channelId } = await request.json()

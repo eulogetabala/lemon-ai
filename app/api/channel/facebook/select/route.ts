@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { encrypt } from "@/lib/encryption"
 import { getSupabaseServerClient } from "@/lib/supabase-server"
+import { checkChannelConnectLimit, getPlanFromClerkHas } from "@/lib/plan-limits"
+import { auth } from "@clerk/nextjs/server"
 import {
   FACEBOOK_PAGE_SELECT_COOKIE,
   decodeFacebookPageSelectSession,
@@ -39,6 +41,27 @@ export async function POST(request: NextRequest) {
         { error: "Cette page n'est plus disponible. Reconnectez Facebook." },
         { status: 404 },
       )
+    }
+
+    // Check plan limits if this page is not already connected
+    const { data: existingPage } = await supabase
+      .from("user_channels")
+      .select("id")
+      .eq("user_id", session.userId)
+      .eq("provider_account_id", page.id)
+      .eq("is_connected", true)
+      .maybeSingle()
+
+    if (!existingPage) {
+      const { has } = await auth()
+      const planId = getPlanFromClerkHas(has)
+      const limitCheck = await checkChannelConnectLimit(supabase, session.userId, planId)
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { error: limitCheck.message || "Limite de 3 canaux connectés atteinte pour le forfait Gratuit. Passez à Pro pour connecter des canaux illimités." },
+          { status: 403 },
+        )
+      }
     }
 
     const payload = {

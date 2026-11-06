@@ -1,6 +1,7 @@
 import { POST_STATUS } from "@/constants/post";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { ImageObject } from "@/types/post.type";
+import { checkMonthlyPostsLimit, getPlanFromClerkHas } from "@/lib/plan-limits";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -87,12 +88,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "No valid posts provided" }, { status: 400 })
         }
 
-        const isPaidPlan = has({ plan: "pro" }) || has({ plan: "premium" })
-        if (!isPaidPlan) {
-            const canCreate = await checkCreatePostLimit(supabase, userId)
-            if (!canCreate) {
-                return NextResponse.json({ error: "You have reached your post limit, upgrade" }, { status: 403 })
-            }
+        const planId = getPlanFromClerkHas(has);
+        const limitCheck = await checkMonthlyPostsLimit(supabase, userId, planId, normalizedPosts.length);
+        if (!limitCheck.allowed) {
+            return NextResponse.json({
+                error: limitCheck.message || "Limite de publications atteinte pour votre forfait. Passez au forfait Pro pour publier sans limite."
+            }, { status: 403 });
         }
 
         const invalidPost = normalizedPosts.find((post) => !post.content);
@@ -153,14 +154,6 @@ export async function POST(request: NextRequest) {
     }
 }
 
-async function checkCreatePostLimit(supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>['supabase'], userId: string) {
-    const { count, error } = await supabase
-        .from("scheduled_posts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId);
-    if (error) throw error;
-    return (count ?? 0) < 4;
-}
 
 function formatDayLabel(date: Date) {
     const today = new Date();

@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Image from "next/image"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserProfile, useUser } from "@clerk/nextjs"
-import { Layers, Moon, Palette, Settings, Sun, User } from "lucide-react"
+import { CreditCard, Layers, Moon, Palette, Settings, Sun, User } from "lucide-react"
 import ChannelsTab from "@/components/settings/channels-tab"
+import BillingTab from "@/components/settings/billing-tab"
 import { useTheme } from "next-themes"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -63,6 +64,17 @@ const SettingsPage = () => {
                 >
                   <Palette className="size-3.5" />
                   Apparence
+                </TabsTrigger>
+                <TabsTrigger
+                  value="billing"
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-semibold transition-all duration-200",
+                    "data-[state=active]:bg-ink data-[state=active]:text-lemon data-[state=active]:shadow-sm",
+                    "data-[state=inactive]:text-mute data-[state=inactive]:hover:bg-mist data-[state=inactive]:hover:text-ink"
+                  )}
+                >
+                  <CreditCard className="size-3.5" />
+                  Offre &amp; Factures
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -176,6 +188,10 @@ const SettingsPage = () => {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="billing">
+              <BillingTab />
             </TabsContent>
           </Tabs>
         </div>

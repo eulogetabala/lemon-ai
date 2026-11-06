@@ -27,6 +27,7 @@ import {
   FileDown,
   FileText,
   Presentation,
+  RotateCcw,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -215,7 +216,7 @@ export default function CompetitorDetailPage() {
   const [exportMenu, setExportMenu] = useState(false);
   const [selectedPostDetail, setSelectedPostDetail] = useState<CompetitorPost | null>(null);
 
-  const POSTS_PER_PAGE = 8;
+  const POSTS_PER_PAGE = 6;
 
   useEffect(() => {
     let cancelled = false;
@@ -320,17 +321,18 @@ export default function CompetitorDetailPage() {
         ? comp.platforms.filter((p) => p.platform === targetPlat)
         : comp.platforms;
 
-      const filteredStats = targetPlat
-        ? (detail.allStats ?? []).filter((s) => s.platform === targetPlat)
-        : (detail.allStats ?? []);
-
+      const postsToExport = viewFilter === "all" ? allPosts : posts;
       const filteredPosts = targetPlat
-        ? allPosts.filter((p) => p.platform === targetPlat)
-        : allPosts;
+        ? postsToExport.filter((p) => p.platform === targetPlat)
+        : postsToExport;
 
       const activePlatObj = targetPlat
         ? comp.platforms.find((p) => p.platform === targetPlat)
         : undefined;
+
+      const filteredStats = targetPlat
+        ? (viewFilter === "all" ? (detail.allStats ?? detail.stats) : detail.stats).filter((s) => s.platform === targetPlat)
+        : (viewFilter === "all" ? (detail.allStats ?? detail.stats) : detail.stats);
 
       const reportData: CompetitorReportData = {
         competitorName: comp.name,
@@ -338,6 +340,7 @@ export default function CompetitorDetailPage() {
         channelHandle: activePlatObj?.handle ? usernameFromHandle(activePlatObj.handle) : null,
         industry: comp.industry,
         website: comp.website,
+        period: viewFilter === "all" ? "Historique complet" : formatMonth(currentMonth),
         platforms: filteredPlatforms.map((p) => ({
           platform: p.platform,
           handle: p.handle,
@@ -885,20 +888,123 @@ export default function CompetitorDetailPage() {
             </div>
           </div>
 
-          {/* Posts Grid of Clickable Cards: Full width 4 columns on large screens! */}
-          <div className="mt-6">
-            {displayedPosts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-16 text-center">
-                <Layers className="size-8 text-slate-300" />
-                <p className="mt-2 text-sm font-bold text-slate-800">
-                  Aucune publication trouvée pour ce filtre
-                </p>
-                <p className="mt-1 text-xs text-slate-500 max-w-sm">
-                  Cliquez sur &quot;Actualiser les données&quot; pour relancer l&apos;analyse du fil public de ce concurrent.
-                </p>
+          {/* Main Layout: Compact Calendar (left) + Posts Grid (right) */}
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+            {/* Left side: Mini Calendar Card */}
+            <div className="col-span-12 lg:col-span-4 xl:col-span-3 flex flex-col gap-4 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4">
+              <MiniCalendar
+                month={currentMonth}
+                posts={currentAllPosts}
+                availableMonths={availableMonths}
+                onMonthChange={(m) => {
+                  setSelectedMonth(m);
+                  setSelectedDay(null);
+                  setViewFilter("month");
+                }}
+                selectedDay={selectedDay}
+                onSelectDay={(d) => {
+                  setSelectedDay(d);
+                  if (d !== null) setViewFilter("month");
+                }}
+              />
+
+              {/* Monthly quick stats summary */}
+              <div className="border-t border-slate-200/70 pt-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Posts du mois</span>
+                  <span className="font-bold text-slate-900">{currentMonthPosts.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Interactions du mois</span>
+                  <span className="font-bold text-[#FF5722]">{monthInteractions.toLocaleString("fr-FR")}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Engagement moyen</span>
+                  <span className="font-bold text-slate-700">{monthEngagement.toFixed(1)}%</span>
+                </div>
+
+                {selectedDay !== null && (
+                  <div className="mt-2 flex items-center justify-between rounded-xl bg-orange-50 border border-orange-200/60 p-2 text-xs">
+                    <span className="font-bold text-[#FF5722]">Jour {selectedDay} filtré</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDay(null)}
+                      className="text-[10px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer underline"
+                    >
+                      Effacer
+                    </button>
+                  </div>
+                )}
+
+                {selectedMonth && selectedMonth !== detail.month && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMonth(detail.month);
+                      setSelectedDay(null);
+                      setViewFilter("month");
+                    }}
+                    className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 text-white px-3 py-2 text-xs font-bold hover:bg-[#FF5722] transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <RotateCcw className="size-3" />
+                    <span>Mois présent ({formatMonth(detail.month)})</span>
+                  </button>
+                )}
+
+                {/* Direct Month Export */}
+                <div className="mt-2 border-t border-slate-200/70 pt-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Rapport de {formatMonth(currentMonth)}
+                  </span>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleExport("pdf")}
+                      disabled={isExporting}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0A0D14] px-2.5 py-1.5 text-xs font-bold text-white transition-all hover:bg-[#FF5722] disabled:opacity-50 cursor-pointer shadow-2xs"
+                    >
+                      <FileText className="size-3" />
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExport("pptx")}
+                      disabled={isExporting}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-all hover:border-[#FF5722] hover:text-[#FF5722] disabled:opacity-50 cursor-pointer shadow-2xs"
+                    >
+                      <Presentation className="size-3" />
+                      PPTX
+                    </button>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            </div>
+
+            {/* Right side: Posts Grid */}
+            <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col">
+              {displayedPosts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-16 text-center">
+                  <Layers className="size-8 text-slate-300" />
+                  <p className="mt-2 text-sm font-bold text-slate-800">
+                    Aucune publication trouvée pour ce filtre
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 max-w-sm">
+                    {selectedDay !== null
+                      ? `Aucune publication relevée pour le ${selectedDay} ${formatMonth(currentMonth)}.`
+                      : `Aucune publication répertoriée pour ${formatMonth(currentMonth)}.`}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0A0D14] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#FF5722] cursor-pointer"
+                  >
+                    <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
+                    Actualiser les données
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {paginatedPosts.map((post) => {
                   const PlatformIcon = ICON_MAP[post.platform] || FacebookIcon;
                   const pubDate = new Date(post.publishedAt).toLocaleDateString("fr-FR", {
@@ -1036,57 +1142,58 @@ export default function CompetitorDetailPage() {
                 })}
               </div>
             )}
-          </div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-5">
-              <p className="text-xs font-medium text-slate-500">
-                Affichage de <span className="font-bold text-slate-800">{(currentPage - 1) * POSTS_PER_PAGE + 1}</span> à{" "}
-                <span className="font-bold text-slate-800">
-                  {Math.min(currentPage * POSTS_PER_PAGE, displayedPosts.length)}
-                </span>{" "}
-                sur <span className="font-bold text-slate-800">{displayedPosts.length}</span> publications
-              </p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                >
-                  <ChevronLeft className="size-3.5" />
-                  Précédent
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-5">
+                <p className="text-xs font-medium text-slate-500">
+                  Affichage de <span className="font-bold text-slate-800">{(currentPage - 1) * POSTS_PER_PAGE + 1}</span> à{" "}
+                  <span className="font-bold text-slate-800">
+                    {Math.min(currentPage * POSTS_PER_PAGE, displayedPosts.length)}
+                  </span>{" "}
+                  sur <span className="font-bold text-slate-800">{displayedPosts.length}</span> publications
+                </p>
+                <div className="flex items-center gap-1.5">
                   <button
-                    key={page}
                     type="button"
-                    onClick={() => setCurrentPage(page)}
-                    className={cn(
-                      "size-8 rounded-xl text-xs font-bold transition-all cursor-pointer",
-                      currentPage === page
-                        ? "bg-[#0A0D14] text-white shadow-xs"
-                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    )}
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                   >
-                    {page}
+                    <ChevronLeft className="size-3.5" />
+                    Précédent
                   </button>
-                ))}
-                <button
-                  type="button"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                >
-                  Suivant
-                  <ChevronRight className="size-3.5" />
-                </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={cn(
+                        "size-8 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                        currentPage === page
+                          ? "bg-[#0A0D14] text-white shadow-xs"
+                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      )}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                  >
+                    Suivant
+                    <ChevronRight className="size-3.5" />
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+    </div>
 
       {/* ── 4. Modal Analyse & Recommandations Stratégiques KORAPULSE ── */}
       <Dialog open={isAnalysisModalOpen} onOpenChange={setIsAnalysisModalOpen}>

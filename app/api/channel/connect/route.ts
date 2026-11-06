@@ -3,14 +3,19 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { buildProviderRedirectUri, getOAuthProvider, getRequestOrigin } from "@/lib/social-oauth";
 import { createPkcePair, getPkceCookieName } from "@/lib/social-oauth/pkce";
 import { createOAuthState } from "@/lib/social-oauth/state";
+import { checkChannelConnectLimit, getPlanFromClerkHas } from "@/lib/plan-limits";
+import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
 export async function POST(request: NextRequest) {
     try {
+        const { has, userId: clerkUserId } = await auth();
         const { supabase, userId } = await getSupabaseServerClient();
         if (!userId) return NextResponse.json({ error: 'User not found' }, { status: 401 });
+
+        const planId = getPlanFromClerkHas(has);
 
         const { channelTypeId } = await request.json();
         if (!channelTypeId) return NextResponse.json({ error: 'Channel type ID is required' }, { status: 400 });
@@ -23,6 +28,26 @@ export async function POST(request: NextRequest) {
 
         if (error || !channelType) {
             return NextResponse.json({ error: 'Channel type not found' }, { status: 404 });
+        }
+
+        // Check plan limits before initiating OAuth:
+        // If this channel type is not already connected, enforce max connected channels limit
+        const { data: existingChannel } = await supabase
+            .from("user_channels")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("channel_type_id", channelTypeId)
+            .eq("is_connected", true)
+            .maybeSingle();
+
+        if (!existingChannel) {
+            const limitCheck = await checkChannelConnectLimit(supabase, userId, planId);
+            if (!limitCheck.allowed) {
+                return NextResponse.json(
+                    { error: limitCheck.message || "Limite de canaux atteinte pour votre forfait. Passez au forfait Pro pour connecter des canaux illimités." },
+                    { status: 403 }
+                );
+            }
         }
 
         // Return the user to wherever they initiated the connection (the browser

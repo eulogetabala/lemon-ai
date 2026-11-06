@@ -9,6 +9,7 @@ import {
 import { getPkceCookieName } from "@/lib/social-oauth/pkce";
 import { verifyOAuthState } from "@/lib/social-oauth/state";
 import { OAuthProvider } from "@/lib/social-oauth/types";
+import { checkChannelConnectLimit } from "@/lib/plan-limits";
 import { NextRequest, NextResponse } from "next/server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? ""
@@ -112,6 +113,27 @@ export async function GET(request: NextRequest) {
             token_expires_at: token.expiresAt ?? null,
             is_connected: true,
             is_active: true,
+        }
+
+        // Verify channel limit if connecting a new channel
+        const { data: existingChannel } = await supabase
+            .from("user_channels")
+            .select("id")
+            .eq("user_id", state.userId)
+            .eq("channel_type_id", state.channelTypeId)
+            .eq("is_connected", true)
+            .maybeSingle()
+
+        if (!existingChannel) {
+            const limitCheck = await checkChannelConnectLimit(supabase, state.userId, "free")
+            if (!limitCheck.allowed) {
+                const response = buildRedirectUrl(appUrl, redirectTo, {
+                    connected: "false",
+                    error: "Limite de 3 canaux connectés atteinte pour le forfait Gratuit. Passez au forfait Pro.",
+                })
+                response.cookies.delete(pkceCookieName)
+                return response
+            }
         }
 
         const { error } = await supabase

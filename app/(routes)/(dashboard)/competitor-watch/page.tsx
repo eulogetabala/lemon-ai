@@ -577,28 +577,14 @@ function CompetitorCard({
           })}
         </div>
 
-        {/* Real Metrics Grid (Abonnés, Posts, Eng.) */}
+        {/* Metric: Abonnés uniquement */}
         <Link href={`/competitor-watch/${competitor.id}`} className="block">
-          <dl className="mt-4 grid grid-cols-3 gap-2">
-            <div className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-2.5">
-              <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Abonnés</dt>
-              <dd className="mt-1 text-sm font-black tabular-nums text-slate-900">
-                {totals.followers > 0 ? formatNumber(totals.followers) : "—"}
-              </dd>
-            </div>
-            <div className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-2.5">
-              <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Posts</dt>
-              <dd className="mt-1 text-sm font-black tabular-nums text-slate-900">
-                {totals.posts > 0 ? totals.posts : "—"}
-              </dd>
-            </div>
-            <div className="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-2.5">
-              <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Eng.</dt>
-              <dd className="mt-1 text-sm font-black tabular-nums text-[#FF5722]">
-                {totals.engagement > 0 ? `${totals.engagement.toFixed(1)} %` : "—"}
-              </dd>
-            </div>
-          </dl>
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-3.5 py-2.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Abonnés</span>
+            <span className="text-base font-black tabular-nums text-slate-900">
+              {totals.followers > 0 ? formatNumber(totals.followers) : "—"}
+            </span>
+          </div>
         </Link>
       </div>
 

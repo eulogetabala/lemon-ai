@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase-server"
+import { auth } from "@clerk/nextjs/server"
+import { checkCompetitorLimit, getPlanFromClerkHas } from "@/lib/plan-limits"
 import {
   buildProfileUrl,
   usernameFromHandle,
@@ -167,6 +169,17 @@ export async function POST(request: NextRequest) {
     const platforms = body?.platforms ?? []
     if (!name) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 })
     if (platforms.length === 0) return NextResponse.json({ error: "Au moins une plateforme est requise." }, { status: 400 })
+
+    // Check competitor limit according to user plan
+    const { has, sessionClaims } = await auth()
+    const planId = getPlanFromClerkHas({ has, sessionClaims })
+    const limitCheck = await checkCompetitorLimit(supabase, userId, planId)
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { error: limitCheck.message || "Limite de veille atteinte pour votre forfait. Passez au forfait Pro pour surveiller des concurrents illimités." },
+        { status: 403 }
+      )
+    }
 
     const now = new Date().toISOString()
     const { data: competitor, error: insertError } = await supabase

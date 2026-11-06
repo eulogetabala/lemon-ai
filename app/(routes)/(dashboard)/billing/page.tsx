@@ -20,7 +20,8 @@ const plans = [
     cta: "Offre actuelle",
     disabled: true,
     features: [
-      "3 canaux connectés",
+      "1 canal connecté",
+      "1 concurrent sous veille",
       "10 publications planifiées/mois",
       "Analytiques de base",
       "1 espace de travail",
@@ -32,14 +33,15 @@ const plans = [
     name: "Pro",
     icon: Zap,
     description: "Pour les créateurs et solopreneurs qui publient régulièrement.",
-    monthlyPrice: 19,
-    yearlyPrice: 15,
+    monthlyPrice: 12000,
+    yearlyPrice: 9600,
     badge: "Le plus populaire",
     highlight: true,
     cta: "Passer à Pro",
     disabled: false,
     features: [
       "Canaux connectés illimités",
+      "Veille concurrentielle illimitée",
       "Publications planifiées illimitées",
       "Analytiques et insights avancés",
       "Suggestions de contenu intelligentes",
@@ -54,8 +56,8 @@ const plans = [
     name: "Équipe",
     icon: Users,
     description: "Pour les équipes en croissance qui gèrent plusieurs marques.",
-    monthlyPrice: 49,
-    yearlyPrice: 39,
+    monthlyPrice: 30000,
+    yearlyPrice: 24000,
     badge: null,
     highlight: false,
     cta: "Passer à Équipe",
@@ -100,9 +102,9 @@ export default function BillingPage() {
 
   const displayPrice = (plan: (typeof plans)[0]) => {
     if (plan.monthlyPrice === null) return "Sur mesure"
-    if (plan.monthlyPrice === 0) return "0 $"
+    if (plan.monthlyPrice === 0) return "0 FCFA"
     const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice
-    return `${price} $`
+    return `${price?.toLocaleString("fr-FR")} FCFA`
   }
 
   return (
@@ -202,18 +204,18 @@ export default function BillingPage() {
               <div className="mt-5 mb-5">
                 <div className="flex items-end gap-1">
                   <span className={cn(
-                    "text-4xl font-extrabold tracking-tight",
+                    "text-2xl font-extrabold tracking-tight",
                     plan.highlight ? "text-moss" : "text-ink"
                   )}>
                     {displayPrice(plan)}
                   </span>
                   {plan.monthlyPrice !== null && plan.monthlyPrice > 0 && (
-                    <span className="text-mute text-xs mb-1.5 font-medium">/mois</span>
+                    <span className="text-mute text-xs mb-1 font-medium">/mois</span>
                   )}
                 </div>
                 {interval === "yearly" && plan.yearlyPrice && plan.yearlyPrice > 0 && (
                   <p className="tag-code text-mute mt-1">
-                    Facturé {plan.yearlyPrice * 12} $/an
+                    Facturé {(plan.yearlyPrice * 12).toLocaleString("fr-FR")} FCFA/an
                   </p>
                 )}
                 {plan.monthlyPrice === null && (

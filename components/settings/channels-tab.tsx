@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
 import { ChannelType, ConnectedAccountType } from '@/types/channel.type';
 import { getChannelIcon } from '@/constants/channels';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -98,9 +99,22 @@ function ChannelTabContent() {
         },
     })
 
+    const { user } = useUser()
+    const userPlan = ((user?.publicMetadata as any)?.plan) || "free"
+    const isPaid = userPlan === "pro" || userPlan === "premium" || userPlan === "team" || userPlan === "enterprise"
+
     const handleConnect = (channelTypeId: string) => {
         if (!channelTypeId) return
         if (connectMutation.isPending) return
+
+        // Check if connecting a new channel exceeds the Free plan 1 channel limit
+        const isAlreadyConnected = accounts.some((acc) => acc.channel_type_id === channelTypeId)
+        if (!isPaid && !isAlreadyConnected && accounts.length >= 1) {
+            toast.error("Limite atteinte : Le forfait Gratuit est limité à 1 seul canal connecté. Passez au forfait Pro pour connecter des canaux illimités.")
+            router.push("/billing")
+            return
+        }
+
         // Open blank tab NOW (synchronous = popup blockers won't fire)
         // Then fill it with the OAuth URL once the API responds
         const targetWindow = window.open("", "_blank")
@@ -113,10 +127,33 @@ function ChannelTabContent() {
     }
     return (
         <>
-            <div className='relative border-b border-hairline px-5 py-4'>
+            <div className='relative border-b border-hairline px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
                 <div className='absolute inset-x-0 top-0 h-0.5 bg-linear-to-r from-transparent via-lemon/40 to-transparent' />
-                <h2 className='text-sm font-extrabold tracking-tight text-ink'>Canaux</h2>
-                <p className='mt-0.5 text-xs text-mute'>Connectez vos comptes de réseaux sociaux pour commencer à planifier</p>
+                <div>
+                    <h2 className='text-sm font-extrabold tracking-tight text-ink'>Canaux</h2>
+                    <p className='mt-0.5 text-xs text-mute'>Connectez vos comptes de réseaux sociaux pour commencer à planifier</p>
+                </div>
+                <div className='flex items-center gap-2'>
+                    <span className={cn(
+                        'rounded-full px-3 py-1 text-xs font-bold border',
+                        !isPaid && accounts.length >= 1
+                            ? 'border-orange-500/30 bg-orange-500/10 text-[#FF5722]'
+                            : 'border-slate-200 bg-slate-50 text-slate-700'
+                    )}>
+                        {isPaid
+                            ? `${accounts.length} canaux (Forfait Pro · Illimité)`
+                            : `${accounts.length} / 1 canal (Gratuit)`}
+                    </span>
+                    {!isPaid && accounts.length >= 1 && (
+                        <Button
+                            size='sm'
+                            onClick={() => router.push("/billing")}
+                            className='h-7 rounded-full bg-[#FF5722] px-3 text-[11px] font-bold text-white hover:bg-[#F4511E] shadow-2xs'
+                        >
+                            Passer à Pro
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className='space-y-2 p-4'>

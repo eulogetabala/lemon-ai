@@ -40,6 +40,7 @@ export type CompetitorReportData = {
   competitorName: string
   channelName?: string | null
   channelHandle?: string | null
+  period?: string
   industry?: string
   website?: string | null
   platforms: ReportPlatform[]

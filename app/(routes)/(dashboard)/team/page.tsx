@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Users,
   UserPlus,
@@ -11,13 +12,16 @@ import {
   X,
   Mail,
   User,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 interface TeamMember {
@@ -31,6 +35,9 @@ interface TeamMember {
 
 export default function TeamPage() {
   const { user } = useUser();
+  const { has } = useAuth();
+  const isTeamOrEnterprise = has ? (has({ plan: "team" }) || has({ plan: "enterprise" })) : false;
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -87,8 +94,14 @@ export default function TeamPage() {
 
           <button
             type="button"
-            onClick={() => setIsInviteOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#FF5722] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-[#F4511E] active:scale-[0.98]"
+            onClick={() => {
+              if (!isTeamOrEnterprise) {
+                setIsUpgradeModalOpen(true);
+                return;
+              }
+              setIsInviteOpen(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#FF5722] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-[#F4511E] active:scale-[0.98] cursor-pointer"
           >
             <UserPlus className="size-4" />
             Inviter un collaborateur
@@ -298,6 +311,62 @@ export default function TeamPage() {
               </button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Team Plan Gate Modal */}
+      <Dialog open={isUpgradeModalOpen} onOpenChange={setIsUpgradeModalOpen}>
+        <DialogContent className="max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <DialogHeader>
+            <div className="flex size-11 items-center justify-center rounded-2xl bg-orange-50 text-[#FF5722] mb-2">
+              <Users className="size-5" />
+            </div>
+            <DialogTitle className="text-lg font-black text-slate-900">
+              Collaboration d&apos;équipe &amp; Rôles
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 leading-relaxed mt-1">
+              L&apos;invitation de collaborateurs et la gestion des rôles d&apos;équipe sont réservées aux forfaits <strong>Équipe</strong> (30 000 FCFA/mois) et <strong>Entreprise</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-xs space-y-2">
+            <div className="font-bold text-slate-900">Inclus dans le forfait Équipe :</div>
+            <ul className="space-y-1.5 text-slate-600">
+              <li className="flex items-center gap-2">
+                <span className="text-[#FF5722] font-bold">•</span>
+                <span>Espaces de travail illimités</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-[#FF5722] font-bold">•</span>
+                <span>Collaboration d&apos;équipe et rôles granulaires</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-[#FF5722] font-bold">•</span>
+                <span>Workflows de relecture &amp; d&apos;approbation</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-[#FF5722] font-bold">•</span>
+                <span>Rapports en marque blanche</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="mt-5 flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsUpgradeModalOpen(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              Plus tard
+            </button>
+            <Link
+              href="/billing"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0A0D14] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#FF5722] transition-colors cursor-pointer shadow-sm"
+            >
+              <span>Découvrir l&apos;offre Équipe</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
         </DialogContent>
       </Dialog>
     </>
