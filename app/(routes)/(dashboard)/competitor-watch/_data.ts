@@ -8,52 +8,53 @@ export const PLATFORM_META: Record<
 > = {
   facebook: {
     label: "Facebook",
-    color: "#1877F2",
-    lightBg: "bg-blue-50",
-    darkBg: "dark:bg-blue-950/40",
+    color: "#0F172A",
+    lightBg: "bg-slate-100",
+    darkBg: "dark:bg-slate-900/60",
   },
   instagram: {
     label: "Instagram",
-    color: "#E1306C",
-    lightBg: "bg-pink-50",
-    darkBg: "dark:bg-pink-950/40",
+    color: "#0F172A",
+    lightBg: "bg-slate-100",
+    darkBg: "dark:bg-slate-900/60",
   },
   linkedin: {
     label: "LinkedIn",
-    color: "#0A66C2",
-    lightBg: "bg-sky-50",
-    darkBg: "dark:bg-sky-950/40",
+    color: "#0F172A",
+    lightBg: "bg-slate-100",
+    darkBg: "dark:bg-slate-900/60",
   },
   twitter: {
     label: "X (Twitter)",
-    color: "#18181B",
-    lightBg: "bg-zinc-50",
-    darkBg: "dark:bg-zinc-800/40",
+    color: "#0F172A",
+    lightBg: "bg-slate-100",
+    darkBg: "dark:bg-slate-900/60",
   },
   threads: {
     label: "Threads",
-    color: "#101010",
-    lightBg: "bg-zinc-50",
-    darkBg: "dark:bg-zinc-900/40",
+    color: "#0F172A",
+    lightBg: "bg-slate-100",
+    darkBg: "dark:bg-slate-900/60",
   },
   tiktok: {
     label: "TikTok",
-    color: "#010101",
-    lightBg: "bg-zinc-50",
-    darkBg: "dark:bg-zinc-900/40",
+    color: "#0F172A",
+    lightBg: "bg-slate-100",
+    darkBg: "dark:bg-slate-900/60",
   },
   youtube: {
     label: "YouTube",
-    color: "#FF0000",
-    lightBg: "bg-red-50",
-    darkBg: "dark:bg-red-950/40",
+    color: "#0F172A",
+    lightBg: "bg-slate-100",
+    darkBg: "dark:bg-slate-900/60",
   },
 }
 
 export function formatNumber(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return n.toString()
+  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return n.toLocaleString("fr-FR")
 }
 
 export function getPrevMonth(month: string): string {

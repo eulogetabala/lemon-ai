@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Zap, Rocket, Building2, Star, CreditCard, ArrowRight } from "lucide-react"
+import { Check, Zap, Users, Building2, Layers, CreditCard, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -11,7 +11,7 @@ const plans = [
   {
     id: "free",
     name: "Gratuit",
-    icon: Star,
+    icon: Layers,
     description: "Idéal pour démarrer avec la planification sur les réseaux sociaux.",
     monthlyPrice: 0,
     yearlyPrice: 0,
@@ -42,7 +42,7 @@ const plans = [
       "Canaux connectés illimités",
       "Publications planifiées illimitées",
       "Analytiques et insights avancés",
-      "Suggestions de contenu IA",
+      "Suggestions de contenu intelligentes",
       "5 espaces de travail",
       "Support e-mail prioritaire",
       "Vue calendrier",
@@ -52,7 +52,7 @@ const plans = [
   {
     id: "team",
     name: "Équipe",
-    icon: Rocket,
+    icon: Users,
     description: "Pour les équipes en croissance qui gèrent plusieurs marques.",
     monthlyPrice: 49,
     yearlyPrice: 39,
@@ -67,7 +67,7 @@ const plans = [
       "Workflows d'approbation",
       "Rapports en marque blanche",
       "Liens personnalisés à votre marque",
-      "Support Slack dédié",
+      "Support dédié",
       "Accès API",
     ],
   },
@@ -80,7 +80,7 @@ const plans = [
     yearlyPrice: null,
     badge: null,
     highlight: false,
-    cta: "Contacter les ventes",
+    cta: "Contacter l'équipe",
     disabled: false,
     features: [
       "Tout ce qui est inclus dans Équipe",
@@ -145,7 +145,7 @@ export default function BillingPage() {
             )}
           >
             Annuel
-            <span className="tag-code bg-lemon text-ink rounded-full px-2 py-0.5">
+            <span className="tag-code bg-lemon text-white font-bold rounded-full px-2 py-0.5">
               –20 %
             </span>
           </button>
@@ -176,7 +176,7 @@ export default function BillingPage() {
 
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <span className="inline-flex items-center rounded-full bg-lemon px-3 py-1 tag-code text-ink lime-glow">
+                  <span className="inline-flex items-center rounded-full bg-lemon px-3 py-1 tag-code text-white font-bold lime-glow">
                     {plan.badge}
                   </span>
                 </div>
@@ -243,15 +243,15 @@ export default function BillingPage() {
                 className={cn(
                   "w-full mt-6 rounded-full h-10 text-xs font-bold transition-all duration-200 gap-1.5",
                   plan.highlight
-                    ? "bg-lemon text-ink hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(198,255,26,0.4)] hover:-translate-y-0.5"
+                    ? "bg-lemon text-white font-bold hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(255,87,34,0.4)] hover:-translate-y-0.5"
                     : plan.disabled
                       ? "bg-mist text-mute cursor-not-allowed"
-                      : "bg-ink text-lemon hover:bg-ink/90"
+                      : "bg-ink text-white hover:bg-ink/90"
                 )}
                 disabled={plan.disabled}
                 onClick={() => {
                   if (plan.id === "enterprise") {
-                    window.open("mailto:sales@lemonai.app", "_blank")
+                    window.open("mailto:contact@korapulse.com", "_blank")
                   }
                 }}
               >
@@ -268,7 +268,7 @@ export default function BillingPage() {
       <p className="text-center text-xs text-mute mt-10">
         Toutes les offres incluent un essai gratuit de 14 jours. Aucune carte bancaire requise pour commencer.
         Des questions ?{" "}
-        <a href="mailto:support@lemonai.app" className="underline underline-offset-2 hover:text-moss transition-colors font-semibold">
+        <a href="mailto:support@korapulse.com" className="underline underline-offset-2 hover:text-[#FF5722] transition-colors font-semibold">
           Contacter le support
         </a>
       </p>

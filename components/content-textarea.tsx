@@ -4,7 +4,7 @@ import * as React from "react"
 import { EmojiPicker } from "@ferrucc-io/emoji-picker"
 import {
   X,
-  Wand2Icon,
+  PenTool,
   ImagePlus,
   SmileIcon,
   Bold,
@@ -450,8 +450,8 @@ const ContentTextarea = ({
                 onClick={onAIAssistantClick}
                 disabled={disabled}
               >
-                <Wand2Icon className="h-3.5 w-3.5" />
-                Assistant IA
+                <PenTool className="h-3.5 w-3.5 text-[#FF5722]" />
+                Assistant
               </Button>
             )}
           </div>

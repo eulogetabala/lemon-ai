@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { Sparkles, Check, X } from "lucide-react"
+import { Lightbulb, Check, X } from "lucide-react"
 import { useSubscription } from "@clerk/nextjs/experimental"
 import { Button } from "@/components/ui/button"
 import {
@@ -91,9 +91,8 @@ export function GenerateIdeasPopover({ onGenerated }: GenerateIdeasPopoverProps)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="gap-2 
-        bg-linear-to-r from-[#b0ec9c33] to-[#d1bdff33]">
-          <Sparkles className="h-4 w-4" />
+        <Button variant="outline" className="gap-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-900 font-semibold shadow-sm">
+          <Lightbulb className="h-4 w-4 text-[#FF5722]" />
           Générer des idées
         </Button>
       </PopoverTrigger>
@@ -154,7 +153,7 @@ export function GenerateIdeasPopover({ onGenerated }: GenerateIdeasPopoverProps)
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" />
+                  <Lightbulb className="h-4 w-4" />
                   Générer des idées
                 </>
               )}

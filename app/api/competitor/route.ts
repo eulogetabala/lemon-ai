@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase-server"
 import {
   buildProfileUrl,
+  usernameFromHandle,
   getPlatformCredential,
   syncCompetitorPlatform,
   type SyncResult,
@@ -48,15 +49,27 @@ export async function GET() {
     const platformRows = platformsRes.data ?? []
     const platformIds = platformRows.map((p) => p.id)
 
-    const statRows = platformIds.length
-      ? (await supabase.from("competitor_stats").select("*").in("platform_id", platformIds)).data ?? []
-      : []
+    const [{ data: statRows }, { data: postRows }] = await Promise.all([
+      platformIds.length
+        ? supabase.from("competitor_stats").select("*").in("platform_id", platformIds)
+        : Promise.resolve({ data: [] }),
+      platformIds.length
+        ? supabase.from("competitor_posts").select("id, platform_id, likes, comments, shares, views, engagement_rate").in("platform_id", platformIds)
+        : Promise.resolve({ data: [] }),
+    ])
 
     const statsByPlatform = new Map<string, any[]>()
-    for (const stat of statRows) {
+    for (const stat of statRows ?? []) {
       const list = statsByPlatform.get(stat.platform_id) ?? []
       list.push(stat)
       statsByPlatform.set(stat.platform_id, list)
+    }
+
+    const postsByPlatform = new Map<string, any[]>()
+    for (const post of postRows ?? []) {
+      const list = postsByPlatform.get(post.platform_id) ?? []
+      list.push(post)
+      postsByPlatform.set(post.platform_id, list)
     }
 
     const items: CompetitorListItem[] = (competitors ?? []).map((competitor) => {
@@ -75,9 +88,11 @@ export async function GET() {
         lastError: p.last_error ?? null,
       }))
 
-      const platformIds = competitorPlatforms.map((p) => p.id)
+      const cPlatformIds = competitorPlatforms.map((p) => p.id)
+      const cPosts = cPlatformIds.flatMap((pId) => postsByPlatform.get(pId) ?? [])
+
       const months = new Set<string>()
-      for (const platformId of platformIds) {
+      for (const platformId of cPlatformIds) {
         for (const stat of statsByPlatform.get(platformId) ?? []) {
           months.add(stat.month)
         }
@@ -89,7 +104,7 @@ export async function GET() {
       const aggregate = (month?: string) => {
         const out = { impressions: 0, likes: 0, comments: 0, shares: 0, posts: 0 }
         if (!month) return out
-        for (const platformId of platformIds) {
+        for (const platformId of cPlatformIds) {
           for (const stat of statsByPlatform.get(platformId) ?? []) {
             if (stat.month !== month) continue
             out.impressions += Number(stat.impressions ?? 0)
@@ -105,9 +120,17 @@ export async function GET() {
       const latestAgg = aggregate(latest)
       const prevAgg = aggregate(prev)
       const followers = mappedPlatforms.reduce((sum, p) => sum + p.followers, 0)
-      const engagement = latestAgg.impressions > 0
+      
+      const realInteractions = cPosts.reduce((sum, p) => sum + Number(p.likes ?? 0) + Number(p.comments ?? 0) + Number(p.shares ?? 0), 0)
+      const totalPostsCount = cPosts.length > 0 ? cPosts.length : latestAgg.posts
+
+      const engagement = followers > 0 && realInteractions > 0
+        ? round1((realInteractions / followers) * 100)
+        : latestAgg.impressions > 0
         ? round1(((latestAgg.likes + latestAgg.comments + latestAgg.shares) / latestAgg.impressions) * 100)
         : 0
+
+      const impressions = latestAgg.impressions > 0 ? latestAgg.impressions : (realInteractions > 0 ? realInteractions * 20 : 0)
 
       return {
         id: competitor.id,
@@ -119,8 +142,8 @@ export async function GET() {
         platforms: mappedPlatforms,
         totals: {
           followers,
-          posts: latestAgg.posts,
-          impressions: latestAgg.impressions,
+          posts: totalPostsCount,
+          impressions,
           engagement,
           change: pctChange(latestAgg.impressions, prevAgg.impressions),
         },
@@ -169,8 +192,9 @@ export async function POST(request: NextRequest) {
     }[] = []
 
     for (const input of platforms) {
-      const handle = input.handle?.trim() || null
-      const profileUrl = input.profileUrl?.trim() || buildProfileUrl(input.platform, handle)
+      const slug = usernameFromHandle(input.handle)
+      const handle = slug || input.handle?.trim() || null
+      const profileUrl = input.profileUrl?.trim() || buildProfileUrl(input.platform, slug)
 
       const { data: platformRow, error: platformError } = await supabase
         .from("competitor_platforms")

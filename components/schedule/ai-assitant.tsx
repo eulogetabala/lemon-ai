@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Repeat, Minus, Plus, Wand2Icon } from "lucide-react"
+import { Repeat, Minus, Plus, PenTool } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
@@ -100,10 +100,9 @@ export function AIAssistant({ className, content, channelId, onGenerate }: AIAss
       
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 ">
-          <Wand2Icon className="h-4 w-4 text-purple-500" />
-          <span className="text-sm font-semibold bg-linear-to-r from-purple-500
-           to-blue-500 bg-clip-text text-transparent">
-            Assistant IA
+          <PenTool className="h-4 w-4 text-[#FF5722]" />
+          <span className="text-sm font-bold text-slate-900">
+            Assistant de rédaction KORAPULSE
           </span>
         </div>
       </div>
@@ -126,13 +125,12 @@ export function AIAssistant({ className, content, channelId, onGenerate }: AIAss
           size="lg"
           onClick={handleGenerate}
           disabled={!prompt.trim() || generateMutation.isPending || !canUseAI}
-          className="w-full gap-2 bg-linear-to-r
-           from-purple-500 from-50%  to-blue-500 text-white"
+          className="w-full gap-2 bg-[#FF5722] hover:bg-[#F4511E] text-white font-bold"
         >
           {generateMutation.isPending && generateMutation.variables?.action === "generate" ? (
             <Spinner />
           ) : (
-            <Wand2Icon className="h-4 w-4" />
+            <PenTool className="h-4 w-4" />
           )}
           Générer
         </Button>
@@ -151,9 +149,9 @@ export function AIAssistant({ className, content, channelId, onGenerate }: AIAss
                 disabled={generateMutation.isPending || !canUseAI}
               >
                 {generateMutation.isPending && generateMutation.variables?.action === action ? (
-                  <Spinner className="h-4 w-4 text-purple-500" />
+                  <Spinner className="h-4 w-4 text-[#FF5722]" />
                 ) : (
-                  <Icon className="h-4 w-4 text-purple-500" />
+                  <Icon className="h-4 w-4 text-[#FF5722]" />
                 )}
                 {label}
               </Button>

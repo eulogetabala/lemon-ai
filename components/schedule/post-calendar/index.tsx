@@ -159,7 +159,7 @@ export function PostCalendar({
                         {label}
                       </span>
                       {isCellToday && (
-                        <span className="hidden truncate rounded-full bg-lemon px-1.5 py-px tag-code text-ink sm:inline">
+                        <span className="hidden truncate rounded-full bg-lemon px-1.5 py-px tag-code text-white sm:inline">
                           Aujourd&apos;hui
                         </span>
                       )}
@@ -169,7 +169,7 @@ export function PostCalendar({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="size-5! shrink-0 rounded-full bg-lemon/0 p-0 text-mute opacity-0 transition-all hover:bg-lemon hover:text-ink group-hover:opacity-100 max-sm:opacity-100"
+                        className="size-5! shrink-0 rounded-full bg-lemon/0 p-0 text-mute opacity-0 transition-all hover:bg-lemon hover:text-white group-hover:opacity-100 max-sm:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation()
                           onCreatePost(cellDate)

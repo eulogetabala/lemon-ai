@@ -97,7 +97,7 @@ const ScheduleToolbar = ({
             <LayoutGrid className="h-3.5 w-3.5" />
             <span>Canaux</span>
             {channelIds && channelIds?.length > 0 && (
-              <span className="flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-lemon text-ink text-[10px] font-bold px-1 tabular-nums">
+              <span className="flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-lemon text-white text-[10px] font-bold px-1 tabular-nums">
                 {channelIds.length}
               </span>
             )}

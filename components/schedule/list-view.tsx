@@ -268,7 +268,7 @@ const ListView = ({ setCreatePostModalOpen }: {
                   </p>
                 </div>
                 <Button
-                  className="rounded-full h-9 px-5 text-sm gap-1.5 font-bold bg-lemon text-ink hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(198,255,26,0.4)] hover:-translate-y-0.5 transition-all duration-200"
+                  className="rounded-full h-9 px-5 text-sm gap-1.5 font-bold bg-lemon text-white hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(255,87,34,0.4)] hover:-translate-y-0.5 transition-all duration-200"
                   onClick={() => setCreatePostModalOpen(true)}
                 >
                   <Plus className="size-3.5" />
@@ -413,7 +413,7 @@ const ListView = ({ setCreatePostModalOpen }: {
                                       </Button>
                                       {(post.status === "draft" || post.status === "queue" || post.status === "failed") && (
                                         <Button
-                                          className="rounded-full h-7 px-3 text-xs font-bold bg-lemon text-ink hover:bg-lemon/90 transition-all"
+                                          className="rounded-full h-7 px-3 text-xs font-bold bg-lemon text-white hover:bg-lemon/90 transition-all"
                                           disabled={publishPostMutation.isPending}
                                           onClick={() => handlePublishNow(post)}
                                         >

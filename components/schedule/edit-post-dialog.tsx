@@ -4,7 +4,7 @@ import { parse, set } from "date-fns"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
-    Wand2,
+    PenTool,
     ScanEye,
     Lightbulb,
 } from "lucide-react"
@@ -49,7 +49,7 @@ type ActionTabType = "ideas" | "ai" | "preview"
 
 const rightTabs = [
     { id: "ideas" as ActionTabType, label: "Idées", icon: Lightbulb },
-    { id: "ai" as ActionTabType, label: "Assistant IA", icon: Wand2 },
+    { id: "ai" as ActionTabType, label: "Assistant", icon: PenTool },
     { id: "preview" as ActionTabType, label: "Aperçu", icon: ScanEye },
 ]
 

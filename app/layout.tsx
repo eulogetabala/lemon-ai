@@ -15,9 +15,9 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Lemon.ai | Planification réseaux sociaux",
+  title: "KORAPULSE | Social Media Intelligence & Planification",
   description:
-    "Créez et planifiez vos publications sur tous les réseaux avec l'aide de l'IA. Lemon.ai centralise idées, brouillons et calendrier.",
+    "Centralisez, analysez et optimisez votre présence digitale avec KORAPULSE. Planification multi-réseaux, veille concurrentielle et studio IA.",
 };
 
 export default function RootLayout({

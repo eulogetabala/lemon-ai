@@ -153,7 +153,7 @@ function ChannelTabContent() {
                                                     />
                                                 ) : null}
                                                 <div className='absolute -right-1 -bottom-1 rounded-full bg-white p-0.5 dark:bg-background'>
-                                                    <div className='size-2.5 rounded-full bg-[#27C93F]' />
+                                                    <div className='size-2.5 rounded-full bg-[#FF5722]' />
                                                 </div>
                                             </span>
                                             <span className='font-medium'>{channel.name}</span>
@@ -163,7 +163,7 @@ function ChannelTabContent() {
                                             size='sm'
                                             disabled={connectMutation.isPending}
                                             onClick={() => handleConnect(channel.id!)}
-                                            className='h-8 rounded-full bg-ink px-4 text-xs font-bold text-lemon hover:bg-ink/90'
+                                            className='h-8 rounded-full bg-[#FF5722] px-4 text-xs font-bold text-white hover:bg-[#F4511E] shadow-sm'
                                         >
                                             {connectMutation.isPending && connectMutation.variables?.channelTypeId === channel.id && (
                                                 <Spinner className='size-4' />
@@ -225,7 +225,7 @@ function ChannelTabContent() {
                                             )}
                                         >
                                             {channel.connected ? (
-                                                <div className='size-2.5 rounded-full bg-[#27C93F]' />
+                                                <div className='size-2.5 rounded-full bg-[#FF5722]' />
                                             ) : (
                                                 <HugeiconsIcon icon={PlusSignIcon} className='size-2!' />
                                             )}
@@ -241,10 +241,10 @@ function ChannelTabContent() {
                                     disabled={connectMutation.isPending || disconnectMutation.isPending}
                                     onClick={() => (channel.connected ? handleDisconnect(channel.user_channel_id!) : handleConnect(channel.id!))}
                                     className={cn(
-                                        'h-8 rounded-full px-4 text-xs font-bold',
+                                        'h-8 rounded-full px-4 text-xs font-bold transition-all',
                                         channel.connected
-                                            ? 'border border-stamp/25 bg-stamp/10 text-stamp hover:bg-stamp hover:text-white'
-                                            : 'bg-ink text-lemon hover:bg-ink/90'
+                                            ? 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white'
+                                            : 'bg-[#FF5722] text-white hover:bg-[#F4511E] shadow-sm'
                                     )}
                                 >
                                     {((connectMutation.isPending && connectMutation.variables?.channelTypeId === channel.id) ||

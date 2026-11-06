@@ -4,6 +4,8 @@ import assert from 'node:assert/strict'
 import {
   aggregatePostsByMonth,
   postEngagementRate,
+  usernameFromHandle,
+  buildProfileUrl,
 } from '../lib/competitor-stats.ts'
 import {
   monthRange,
@@ -46,3 +48,42 @@ test('month helpers build a full calendar from the connection month (UTC-safe)',
   assert.ok(range.start.startsWith('2026-10-01'))
   assert.ok(range.end.startsWith('2026-11-01'))
 })
+
+test('usernameFromHandle extracts clean slug from multi-segment LinkedIn URLs and social paths', () => {
+  assert.equal(
+    usernameFromHandle('https://www.linkedin.com/company/banque-congolaise-de-l-habitat/home/'),
+    'banque-congolaise-de-l-habitat'
+  )
+  assert.equal(
+    usernameFromHandle('https://www.linkedin.com/company/banque-congolaise-de-l-habitat/'),
+    'banque-congolaise-de-l-habitat'
+  )
+  assert.equal(
+    usernameFromHandle('https://www.linkedin.com/company/banque-congolaise-de-l-habitat'),
+    'banque-congolaise-de-l-habitat'
+  )
+  assert.equal(
+    usernameFromHandle('banque-congolaise-de-l-habitat'),
+    'banque-congolaise-de-l-habitat'
+  )
+  assert.equal(
+    usernameFromHandle('@banque-congolaise-de-l-habitat'),
+    'banque-congolaise-de-l-habitat'
+  )
+  assert.equal(
+    usernameFromHandle('https://www.facebook.com/BanqueCongolaiseDelHabitat'),
+    'BanqueCongolaiseDelHabitat'
+  )
+})
+
+test('buildProfileUrl rebuilds canonical URLs for all platforms', () => {
+  assert.equal(
+    buildProfileUrl('linkedin', 'https://www.linkedin.com/company/banque-congolaise-de-l-habitat/home/'),
+    'https://www.linkedin.com/company/banque-congolaise-de-l-habitat'
+  )
+  assert.equal(
+    buildProfileUrl('facebook', 'BanqueCongolaiseDelHabitat'),
+    'https://www.facebook.com/BanqueCongolaiseDelHabitat'
+  )
+})
+

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { MoreHorizontal, Plus, Lightbulb, Search, LayoutGrid, ListFilter, Sparkles } from "lucide-react"
+import { MoreHorizontal, Plus, Lightbulb, Search, LayoutGrid, ListFilter, Layers } from "lucide-react"
 import {
     DragDropContext,
     Droppable,
@@ -407,20 +407,20 @@ const IdeaKanban = () => {
                             )}
                         </div>
 
-                        <aside className="rounded-[22px] border border-[#dfe5dd] bg-[#eaf0e4] p-3 shadow-[0_18px_24px_-24px_rgba(17,20,16,0.22)]">
-                            <div className="rounded-[18px] border border-[#d4e4c9] bg-[#eff7e7] p-4">
+                        <aside className="rounded-[22px] border border-slate-200 bg-white p-3 shadow-sm">
+                            <div className="rounded-[18px] border border-slate-100 bg-slate-50/80 p-4">
                                 <div className="mb-3 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="flex size-8 items-center justify-center rounded-full bg-[#d7f48d] text-[#1d3723]">
-                                            <Sparkles className="size-4" />
+                                        <div className="flex size-8 items-center justify-center rounded-lg bg-[#FF5722] text-white">
+                                            <Layers className="size-4" />
                                         </div>
-                                        <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#4b5a4d]">IA</span>
+                                        <span className="text-[13px] font-bold uppercase tracking-wider text-slate-900">Content Studio</span>
                                     </div>
-                                    <span className="rounded-full border border-[#cfe6c0] bg-white/70 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#3b4d3c]">Boost</span>
+                                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700">Guide</span>
                                 </div>
 
-                                <h2 className="text-[18px] font-extrabold tracking-[-0.04em] text-[#171c18]">Transformez vos idées en contenu qui impacte</h2>
-                                <p className="mt-2 text-[12px] leading-relaxed text-[#58655f]">Chaque idée peut devenir un article, un script ou une stratégie de contenu plus précise.</p>
+                                <h2 className="text-[17px] font-black tracking-tight text-slate-900">Transformez vos idées en contenu prêt à diffuser</h2>
+                                <p className="mt-2 text-[12px] leading-relaxed text-slate-500">Chaque idée peut être déclinée en carrousel, post court ou thread adapté à vos canaux.</p>
 
                                 <div className="mt-4 rounded-[16px] border border-[#d7e7d0] bg-white p-3">
                                     <div className="flex items-center justify-between text-[12px] font-semibold text-[#2c3a2d]">

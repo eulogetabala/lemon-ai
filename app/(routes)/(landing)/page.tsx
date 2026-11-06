@@ -118,7 +118,7 @@ const cockpitColumns = [
   {
     type: ChannelTypeEnum.LINKEDIN,
     name: "LinkedIn",
-    handle: "Studio Lemon · mar. 09 h",
+    handle: "Studio KORAPULSE · mar. 09 h",
     tone: "light" as const,
     text: "Trois façons de recycler un contenu sans le répéter.\nLa troisième a doublé mes vues.",
     stats: [
@@ -130,7 +130,7 @@ const cockpitColumns = [
   {
     type: ChannelTypeEnum.TWITTER,
     name: "X / Twitter",
-    handle: "Studio Lemon · mar. 12 h",
+    handle: "Studio KORAPULSE · mar. 12 h",
     tone: "dark" as const,
     text: "Recycler n’est pas reposter.\n1. Change l’angle\n2. Change la preuve\n3. Change le format",
     stats: [
@@ -142,7 +142,7 @@ const cockpitColumns = [
   {
     type: ChannelTypeEnum.TIKTOK,
     name: "TikTok",
-    handle: "Studio Lemon · mar. 18 h",
+    handle: "Studio KORAPULSE · mar. 18 h",
     tone: "light" as const,
     text: "[HOOK 0-3 s] Arrête de reposter tes contenus.\n[B-ROLL] écran scindé avant / après.\n[CALL] Tu as trois formats, pas un.",
     stats: [
@@ -342,8 +342,8 @@ const plans = [
 
 const faqs = [
   {
-    q: "En quoi Lemon.ai est différent d’un simple planificateur ?",
-    a: "Un planificateur place un contenu déjà écrit. Lemon.ai part d’une matière brute — une note vocale, un lien, un brouillon — et produit une déclinaison native par canal : longueur, ton, format, hashtags et créneau.",
+    q: "En quoi KORAPULSE est différent d’un simple planificateur ?",
+    a: "Un planificateur place un contenu déjà écrit. KORAPULSE part d’une matière brute — une note, un lien, un brouillon — et produit une déclinaison native par canal : longueur, ton, format, hashtags et créneau.",
   },
   {
     q: "Mes publications sont-elles vraiment adaptées à chaque réseau ?",
@@ -475,7 +475,7 @@ const previews: Record<
           {"1. Change l’angle\n2. Change la preuve\n3. Change le format"}
         </p>
         <p className="mt-3 text-[13.5px] leading-relaxed text-moss">
-          La même idée, quatre entrées différentes. 🧵
+          La même idée, quatre entrées différentes.
         </p>
       </>
     ),
@@ -496,7 +496,7 @@ const previews: Record<
     body: (
       <>
         <p className="text-[13.5px] font-semibold leading-relaxed text-ink">
-          Trois façons de recycler un contenu sans le répéter 👇
+          Trois façons de recycler un contenu sans le répéter.
         </p>
         <p className="mt-3 text-[13.5px] leading-relaxed text-mute">
           La troisième est celle que personne n’ose faire : garder la même
@@ -598,7 +598,7 @@ function Tag({
     <span
       className={cn(
         "tag-code inline-flex items-center gap-1.5 rounded-full px-3 py-1",
-        tone === "lemon" && "bg-lemon text-ink",
+        tone === "lemon" && "bg-lemon text-white font-bold",
         tone === "mist" && "bg-mist text-moss",
         tone === "forest" && "bg-white/10 text-lemon",
         className,
@@ -668,9 +668,9 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [demoOpen, setDemoOpen] = useState(false);
 
-  const primaryCta = isSignedIn ? "/schedule" : "/sign-up";
+  const primaryCta = isSignedIn ? "/dashboard" : "/sign-up";
   const primaryCtaLabel = isSignedIn
-    ? "Ouvrir mon studio"
+    ? "Tableau de bord"
     : "Commencer gratuitement";
   const annual = billing === "annual";
   const preview = previews[activeTab];
@@ -719,7 +719,7 @@ export default function LandingPage() {
             )}
             <Link
               href={primaryCta}
-              className="lime-glow inline-flex items-center gap-2 rounded-full bg-lemon px-4 py-2.5 text-sm font-bold text-ink transition-transform hover:-translate-y-0.5 sm:px-5"
+              className="lime-glow inline-flex items-center gap-2 rounded-full bg-lemon px-4 py-2.5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5 sm:px-5"
             >
               {primaryCtaLabel}
               <ArrowRight className="size-4" />
@@ -806,14 +806,14 @@ export default function LandingPage() {
             </h1>
 
             <p className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-mute sm:text-[17px]">
-              Une idée brute. Lemon.ai la découpe, la réécrit pour chaque
+              Une idée brute. KORAPULSE la découpe, la réécrit pour chaque
               réseau et la programme au bon créneau. Vous validez — ça part.
             </p>
 
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
                 href={primaryCta}
-                className="lime-glow inline-flex w-full items-center justify-center gap-2 rounded-full bg-lemon px-6 py-3.5 text-sm font-bold text-ink transition-transform hover:-translate-y-0.5 sm:w-auto"
+                className="lime-glow inline-flex w-full items-center justify-center gap-2 rounded-full bg-lemon px-6 py-3.5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5 sm:w-auto"
               >
                 {primaryCtaLabel}
                 <ArrowRight className="size-4" />
@@ -897,7 +897,7 @@ export default function LandingPage() {
                       <span className="size-2.5 rounded-full bg-[#28C840]" />
                     </div>
                     <span className="tag-code text-mute">
-                      Studio unifié Lemon.ai
+                      Studio unifié KORAPULSE
                     </span>
                   </div>
                   <div className="hidden items-center gap-2 sm:flex">
@@ -917,7 +917,7 @@ export default function LandingPage() {
                 {/* source bar */}
                 <div className="flex flex-col gap-3 border-b border-hairline bg-white px-4 py-4 sm:flex-row sm:items-center">
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-lemon">
-                    <Mic className="size-5 text-ink" />
+                    <Mic className="size-5 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="tag-code text-mute">
@@ -1042,8 +1042,8 @@ export default function LandingPage() {
               </div>
               <div className="lg:col-span-5">
                 <p className="text-[15px] leading-relaxed text-mute">
-                  Chaque module de Lemon.ai a été taillé pour supprimer la
-                  friction entre l&apos;éclair de génie créatif et la mise en
+                  Chaque module de KORAPULSE a été taillé pour supprimer la
+                  friction entre l&apos;idée créative et la mise en
                   ligne effective.
                 </p>
               </div>
@@ -1057,7 +1057,7 @@ export default function LandingPage() {
             <Reveal className="lg:col-span-7" delay={40}>
               <div className="flex h-full flex-col rounded-xl border border-hairline bg-white p-7 sm:p-8">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-ink">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-white">
                     01
                   </span>
                   <span className="tag-code text-mute">Adaptation cognitive</span>
@@ -1078,7 +1078,7 @@ export default function LandingPage() {
                   {[
                     {
                       label: "Ton LinkedIn",
-                      dot: "bg-[#0A66C2]",
+                      dot: "bg-[#FF5722]",
                       desc: "Structure en bullet points, accroche interrogative, focus sur le ROI.",
                     },
                     {
@@ -1133,7 +1133,7 @@ export default function LandingPage() {
             <Reveal className="lg:col-span-5" delay={80}>
               <div className="dark-grid-lines flex h-full flex-col rounded-xl bg-forest p-7">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-ink">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-white">
                     02
                   </span>
                   <span className="tag-code text-lemon/60">Vue macro</span>
@@ -1178,7 +1178,7 @@ export default function LandingPage() {
                       <span
                         className={cn(
                           "tag-code text-[9px] font-bold",
-                          slot.highlight ? "text-ink" : "text-sage/80",
+                          slot.highlight ? "text-white" : "text-sage/80",
                         )}
                       >
                         {slot.label}
@@ -1209,7 +1209,7 @@ export default function LandingPage() {
             <Reveal className="lg:col-span-4" delay={40}>
               <div className="flex h-full flex-col rounded-xl border border-hairline bg-white p-7">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-ink">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-white">
                     03
                   </span>
                   <span className="tag-code text-mute">Formats natifs</span>
@@ -1259,7 +1259,7 @@ export default function LandingPage() {
             <Reveal className="lg:col-span-8" delay={80}>
               <div className="flex h-full flex-col rounded-xl border border-hairline bg-white p-7 sm:p-8">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-ink">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-lemon text-[15px] font-extrabold text-white">
                     04
                   </span>
                   <span className="tag-code text-mute">
@@ -1271,7 +1271,7 @@ export default function LandingPage() {
                   Automatisation &amp; Planification Intelligente
                 </h3>
                 <p className="mt-3 text-[14px] leading-relaxed text-mute">
-                  Lemon.ai analyse les pics d&apos;attention de votre propre
+                  KORAPULSE analyse les pics d&apos;attention de votre propre
                   audience en Afrique francophone, Europe et au-delà. Il cale
                   la diffusion à la minute précise où votre reach potentiel est
                   maximal.
@@ -1292,7 +1292,7 @@ export default function LandingPage() {
                   </div>
                   <Link
                     href={primaryCta}
-                    className="lime-glow inline-flex shrink-0 items-center rounded-full bg-lemon px-4 py-2.5 text-[12px] font-bold text-ink transition-transform hover:-translate-y-0.5 whitespace-nowrap"
+                    className="lime-glow inline-flex shrink-0 items-center rounded-full bg-lemon px-4 py-2.5 text-[12px] font-bold text-white transition-transform hover:-translate-y-0.5 whitespace-nowrap"
                   >
                     Activer Auto-Pilot
                   </Link>
@@ -1328,7 +1328,7 @@ export default function LandingPage() {
                   <br className="hidden sm:block" /> Zéro compromis.
                 </>
               }
-              lead="Chaque réseau a ses propres règles de format, de longueur et de ton. Lemon.ai les applique automatiquement à votre contenu."
+              lead="Chaque réseau a ses propres règles de format, de longueur et de ton. KORAPULSE les applique automatiquement à votre contenu."
             />
           </Reveal>
 
@@ -1355,7 +1355,7 @@ export default function LandingPage() {
                       <span
                         className={cn(
                           "flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors",
-                          active ? "bg-lemon text-ink" : "bg-mist text-moss",
+                          active ? "bg-lemon text-white" : "bg-mist text-moss",
                         )}
                       >
                         <ChannelGlyph type={tab.type} className="size-5" />
@@ -1488,7 +1488,7 @@ export default function LandingPage() {
               <SectionHead
                 tag="Veille concurrentielle"
                 title="Ce que fait le marché, pendant que vous écrivez."
-                lead="Ajoutez les comptes qui comptent — concurrents, clients, références. Lemon.ai relève leurs publications chaque matin, puis vous rend la lecture : audience, impressions, engagement. Mensuel, trimestriel ou annuel, au choix."
+                lead="Ajoutez les comptes qui comptent — concurrents, clients, références. KORAPULSE relève leurs publications chaque matin, puis vous rend la lecture : audience, impressions, engagement. Mensuel, trimestriel ou annuel, au choix."
               />
             </Reveal>
 
@@ -1749,7 +1749,7 @@ export default function LandingPage() {
                   )}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-lemon text-ink">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-lemon text-white">
                       <profile.icon className="size-5" />
                     </span>
                     <span className="tag-code text-sage/70">
@@ -1825,7 +1825,7 @@ export default function LandingPage() {
                   )}
                 >
                   Annuel
-                  <span className="tag-code rounded-full bg-lemon px-2 py-0.5 text-ink">
+                  <span className="tag-code rounded-full bg-lemon px-2 py-0.5 text-white font-bold">
                     −20 %
                   </span>
                 </button>
@@ -1845,7 +1845,7 @@ export default function LandingPage() {
                   )}
                 >
                   {plan.highlight && (
-                    <span className="absolute -top-3 left-6 tag-code rounded-full bg-lemon px-3 py-1 text-ink">
+                    <span className="absolute -top-3 left-6 tag-code rounded-full bg-lemon px-3 py-1 text-white font-bold">
                       Le plus populaire
                     </span>
                   )}
@@ -1934,7 +1934,7 @@ export default function LandingPage() {
                     className={cn(
                       "mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-[13px] font-bold transition-transform hover:-translate-y-0.5",
                       plan.highlight
-                        ? "lime-glow bg-lemon text-ink"
+                        ? "lime-glow bg-lemon text-white font-bold"
                         : "border border-ink/15 bg-white text-ink",
                     )}
                   >
@@ -2024,22 +2024,22 @@ export default function LandingPage() {
               />
               <div
                 aria-hidden
-                className="pointer-events-none absolute -right-6 -top-10 select-none text-[140px] leading-none opacity-10 sm:text-[180px]"
+                className="pointer-events-none absolute -right-6 -top-10 select-none text-[140px] font-black text-white/5 leading-none sm:text-[180px]"
               >
-                🍋
+                K
               </div>
               <div className="relative">
                 <h2 className="mx-auto max-w-2xl text-[clamp(1.8rem,4.4vw,2.9rem)] font-extrabold leading-[1.06] tracking-[-0.035em] text-white">
                   Reprenez contrôle absolu de votre calendrier éditorial.
                 </h2>
                 <p className="mx-auto mt-4 max-w-lg text-[14.5px] leading-relaxed text-sage">
-                  Connectez un canal, collez une idée. Lemon.ai s'occupe du
+                  Connectez un canal, collez une idée. KORAPULSE s'occupe du
                   reste — programmation, format, ton.
                 </p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <Link
                     href={primaryCta}
-                    className="lime-glow inline-flex w-full items-center justify-center gap-2 rounded-full bg-lemon px-6 py-3.5 text-sm font-bold text-ink transition-transform hover:-translate-y-0.5 sm:w-auto"
+                    className="lime-glow inline-flex w-full items-center justify-center gap-2 rounded-full bg-lemon px-6 py-3.5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5 sm:w-auto"
                   >
                     {primaryCtaLabel}
                     <ArrowRight className="size-4" />
@@ -2113,7 +2113,7 @@ export default function LandingPage() {
 
           <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-hairline pt-6 sm:flex-row">
             <p className="tag-code text-mute">
-              © {new Date().getFullYear()} Lemon.ai — Tous droits réservés
+              © {new Date().getFullYear()} KORAPULSE — Tous droits réservés
             </p>
             <p className="tag-code text-mute">
               Conçu pour publier moins, et mieux.
@@ -2126,7 +2126,7 @@ export default function LandingPage() {
       <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
         <DialogContent className="max-w-lg gap-0 overflow-hidden border-hairline bg-paper p-0">
           <DialogTitle className="sr-only">
-            Simulateur du studio Lemon.ai
+            Simulateur du studio KORAPULSE
           </DialogTitle>
           <DialogDescription className="sr-only">
             Aperçu de l’adaptation d’une idée brute en publications par canal.
@@ -2170,7 +2170,7 @@ export default function LandingPage() {
             <Link
               href={primaryCta}
               onClick={() => setDemoOpen(false)}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-lemon px-5 py-2.5 text-[13px] font-bold text-ink"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-lemon px-5 py-2.5 text-[13px] font-bold text-white"
             >
               Essayer maintenant
               <ArrowRight className="size-3.5" />

@@ -234,7 +234,7 @@ const SchedulePageContent = () => {
 
           <Button
             onClick={() => setCreatePostModalOpen(true)}
-            className="h-8 gap-1.5 rounded-full bg-lemon px-4 text-[12px] font-bold text-ink shadow-[0_6px_20px_-4px_rgba(198,255,26,0.4)] hover:bg-lemon/90 hover:-translate-y-0.5 transition-all duration-200"
+            className="h-8 gap-1.5 rounded-full bg-lemon px-4 text-[12px] font-bold text-white shadow-[0_6px_20px_-4px_rgba(255,87,34,0.4)] hover:bg-lemon/90 hover:-translate-y-0.5 transition-all duration-200"
           >
             <Plus className="size-3.5" />
             Planifier un post

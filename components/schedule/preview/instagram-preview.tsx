@@ -95,7 +95,7 @@ export function InstagramPreview({ text, images }: InstagramPreviewProps) {
                 {images.map((_, i) => (
                   <div
                     key={i}
-                    className={`size-1.5 rounded-full transition-colors ${i === current ? "bg-blue-500" : "bg-muted-foreground/30"
+                    className={`size-1.5 rounded-full transition-colors ${i === current ? "bg-[#FF5722]" : "bg-muted-foreground/30"
                       }`}
                   />
                 ))}
@@ -106,7 +106,7 @@ export function InstagramPreview({ text, images }: InstagramPreviewProps) {
 
           {/* Caption */}
           <div className="text-sm">
-            <span className="font-semibold mr-2">Lemon</span>
+            <span className="font-semibold mr-2">korapulse</span>
             {!text ? (
               <span className="text-muted-foreground italic">Rien pour le moment…</span>
             ) : text.length > CHAR_LIMIT && !isExpanded ? (

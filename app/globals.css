@@ -57,101 +57,101 @@
 }
 
 :root {
-  --paper: #F5F3EE;
-  --ink: #1E2320;
-  --lemon: #DDEB8A;
-  --stamp: #E86D5A;
-  --moss: #2F5843;
-  --mute: #5E665F;
-  --mist: #F0F1EB;
-  --forest: #102A20;
-  --hairline: #E7E3DA;
-  --sage: #B8C8B5;
-  --background: #F5F3EE;
-  --foreground: #1E2320;
+  --paper: #F8FAFC;
+  --ink: #0F172A;
+  --lemon: #FF5722;
+  --stamp: #FF5722;
+  --moss: #0F172A;
+  --mute: #64748B;
+  --mist: #F1F5F9;
+  --forest: #0A0D14;
+  --hairline: #E2E8F0;
+  --sage: #94A3B8;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
   --card: #FFFFFF;
-  --card-foreground: #1E2320;
+  --card-foreground: #0F172A;
   --popover: #FFFFFF;
-  --popover-foreground: #1E2320;
-  --primary: #DDEB8A;
-  --primary-foreground: #1E2320;
-  --secondary: #1E2320;
-  --secondary-foreground: #DDEB8A;
-  --muted: #F0F1EB;
-  --muted-foreground: #5E665F;
-  --accent: #DDEB8A;
-  --accent-foreground: #1E2320;
-  --destructive: #DC2626;
-  --border: #E2E0D8;
-  --input: #E2E0D8;
-  --ring: #1E2320;
-  --chart-1: #DDEB8A;
-  --chart-2: #2F5843;
-  --chart-3: #E86D5A;
-  --chart-4: #1E2320;
-  --chart-5: #6C766F;
-  --sidebar: #102A20;
-  --sidebar-foreground: #E7F0EA;
-  --sidebar-primary: #DDEB8A;
-  --sidebar-primary-foreground: #102A20;
-  --sidebar-accent: #F5F3EE;
-  --sidebar-accent-foreground: #102A20;
-  --sidebar-border: #16342B;
-  --sidebar-ring: #DDEB8A;
-  --radius: 14px;
+  --popover-foreground: #0F172A;
+  --primary: #FF5722;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #FFF2EC;
+  --accent-foreground: #FF5722;
+  --destructive: #EF4444;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #FF5722;
+  --chart-1: #FF5722;
+  --chart-2: #0F172A;
+  --chart-3: #FF7A50;
+  --chart-4: #334155;
+  --chart-5: #94A3B8;
+  --sidebar: #0A0D14;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #FF5722;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #161A26;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #1E2338;
+  --sidebar-ring: #FF5722;
+  --radius: 16px;
 }
 
 .dark {
-  --paper: #111613;
-  --ink: #EEF2EC;
-  --lemon: #DDEB8A;
-  --stamp: #F18A75;
-  --moss: #B7D29C;
-  --mute: #A0A8A1;
-  --mist: #1A201C;
-  --forest: #0F2A20;
-  --hairline: #2B322D;
-  --sage: #C6D6C2;
-  --background: #111613;
-  --foreground: #EEF2EC;
-  --card: #171D1A;
-  --card-foreground: #EEF2EC;
-  --popover: #171D1A;
-  --popover-foreground: #EEF2EC;
-  --primary: #DDEB8A;
-  --primary-foreground: #1E2320;
-  --secondary: #1A201C;
-  --secondary-foreground: #EDF3EE;
-  --muted: #1A201C;
-  --muted-foreground: #A0A8A1;
-  --accent: #2A3A2E;
-  --accent-foreground: #DDEB8A;
+  --paper: #0A0D14;
+  --ink: #FFFFFF;
+  --lemon: #FF5722;
+  --stamp: #FF5722;
+  --moss: #FFFFFF;
+  --mute: #94A3B8;
+  --mist: #161A26;
+  --forest: #000000;
+  --hairline: #1E2338;
+  --sage: #94A3B8;
+  --background: #0A0D14;
+  --foreground: #FFFFFF;
+  --card: #111422;
+  --card-foreground: #FFFFFF;
+  --popover: #111422;
+  --popover-foreground: #FFFFFF;
+  --primary: #FF5722;
+  --primary-foreground: #FFFFFF;
+  --secondary: #161A26;
+  --secondary-foreground: #FFFFFF;
+  --muted: #161A26;
+  --muted-foreground: #94A3B8;
+  --accent: #1E2338;
+  --accent-foreground: #FF5722;
   --destructive: #EF4444;
-  --border: #2A322E;
-  --input: #2A322E;
-  --ring: #DDEB8A;
-  --chart-1: #DDEB8A;
-  --chart-2: #B7D29C;
-  --chart-3: #F18A75;
-  --chart-4: #EEF2EC;
-  --chart-5: #A0A8A1;
-  --sidebar: #0A100E;
-  --sidebar-foreground: #EDF3EE;
-  --sidebar-primary: #DDEB8A;
-  --sidebar-primary-foreground: #1E2320;
-  --sidebar-accent: #1A201C;
-  --sidebar-accent-foreground: #EDF3EE;
-  --sidebar-border: #2A322E;
-  --sidebar-ring: #DDEB8A;
+  --border: #1E2338;
+  --input: #1E2338;
+  --ring: #FF5722;
+  --chart-1: #FF5722;
+  --chart-2: #FFFFFF;
+  --chart-3: #FF7A50;
+  --chart-4: #64748B;
+  --chart-5: #334155;
+  --sidebar: #05070C;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #FF5722;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #111422;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #1E2338;
+  --sidebar-ring: #FF5722;
 }
 
 button[data-slot="button"] { cursor: pointer; }
 [data-slot="sidebar-container"] { border: none !important; }
 
-/* Force dark-green background on all sidebar inner layers */
+/* Force dark navy background on all sidebar inner layers */
 [data-slot="sidebar-inner"],
 [data-sidebar="sidebar"] {
-  background: linear-gradient(160deg, #0d2b1f 0%, #0a2318 50%, #081a13 100%) !important;
+  background: linear-gradient(180deg, #0e111e 0%, #090c16 100%) !important;
 }
 [data-slot="sidebar-container"] {
   background: transparent !important;
@@ -176,11 +176,11 @@ button[data-slot="button"] { cursor: pointer; }
   font-variant-numeric: tabular-nums;
 }
 
-/* Flat lime halo under the primary CTAs */
-.lime-glow { box-shadow: 0 12px 30px -12px rgba(221, 235, 138, 0.52); }
+/* Orange halo under the primary CTAs */
+.lime-glow { box-shadow: 0 12px 30px -12px rgba(255, 87, 34, 0.45); }
 
-/* Deep-green card lift */
-.forest-card-glow { box-shadow: 0 20px 44px -18px rgba(16, 42, 32, 0.18); }
+/* Deep card lift */
+.forest-card-glow { box-shadow: 0 20px 44px -18px rgba(15, 23, 42, 0.18); }
 
 /* Wireframe grid backdrops (hairline rules, flat fills) */
 .grid-lines {
@@ -204,14 +204,15 @@ button[data-slot="button"] { cursor: pointer; }
 .float-soft { animation: float-soft 5.5s ease-in-out infinite; }
 .float-soft-slow { animation: float-soft 7s ease-in-out 1.2s infinite; }
 
-/* Lemon marker highlight behind display text — draws in from the left */
+/* Marker highlight behind display text — draws in from the left */
 @keyframes swipe-in {
   from { transform: skewX(-8deg) rotate(-0.7deg) scaleX(0); }
   to { transform: skewX(-8deg) rotate(-0.7deg) scaleX(1); }
 }
 .hi-swipe {
   background: var(--lemon);
-  border-radius: 3px;
+  color: #ffffff !important;
+  border-radius: 4px;
   transform-origin: left center;
   transform: skewX(-8deg) rotate(-0.7deg);
   animation: swipe-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.8s both;
@@ -323,13 +324,13 @@ button[data-slot="button"] { cursor: pointer; }
   background: linear-gradient(90deg, var(--lemon) 0%, var(--moss) 100%);
 }
 
-/* ── Sidebar: always dark green regardless of theme ── */
+/* ── Sidebar: always midnight indigo regardless of theme ── */
 [data-slot="sidebar-inner"],
 [data-sidebar="sidebar"] {
-  background: linear-gradient(160deg, #0d2b1f 0%, #0a2318 50%, #081a13 100%) !important;
+  background: linear-gradient(180deg, #0e111e 0%, #090c16 100%) !important;
 }
 .dark [data-slot="sidebar-container"] {
-  border-right: 1px solid #0f2f1e !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 /* ── Button cursor fix ── */
@@ -342,10 +343,11 @@ button { cursor: pointer; }
 
 /* ── Premium Sidebar Styles ── */
 
-/* Active nav item — white pill, forced over any shadcn data-active overrides */
+/* Active nav item — vibrant coral-orange pill as shown in KORAPULSE mockup */
 .sidebar-nav-active {
-  background: #ffffff !important;
-  box-shadow: 0 4px 24px -6px rgba(255, 255, 255, 0.28) !important;
+  background: #ff5722 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 20px -4px rgba(255, 87, 34, 0.45) !important;
 }
 
 /* Connected social items in the sidebar must keep a white hover state */

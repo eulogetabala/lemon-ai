@@ -7,7 +7,7 @@ import { ImageObject } from "@/types/post.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Lightbulb, ScanEye, Wand2 } from "lucide-react";
+import { AlertTriangle, Lightbulb, ScanEye, PenTool } from "lucide-react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -43,7 +43,7 @@ type ActionTabType = "ideas" | "ai" | "preview"
 
 const rightTabs = [
     { id: "ideas" as ActionTabType, label: "Idées", icon: Lightbulb },
-    { id: "ai" as ActionTabType, label: "Assistant IA", icon: Wand2 },
+    { id: "ai" as ActionTabType, label: "Assistant", icon: PenTool },
     { id: "preview" as ActionTabType, label: "Aperçu", icon: ScanEye },
 ]
 

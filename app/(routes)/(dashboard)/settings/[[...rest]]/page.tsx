@@ -154,12 +154,12 @@ const SettingsPage = () => {
                     <p className="tag-code text-mute mb-3">Aperçu de la palette</p>
                     <div className="flex gap-2 flex-wrap">
                       {[
-                        { name: "Lemon", color: "bg-lemon", textColor: "text-ink" },
-                        { name: "Moss", color: "bg-moss", textColor: "text-white" },
-                        { name: "Ink", color: "bg-ink", textColor: "text-lemon" },
-                        { name: "Paper", color: "bg-paper border border-hairline", textColor: "text-ink" },
-                        { name: "Mist", color: "bg-mist", textColor: "text-ink" },
-                        { name: "Stamp", color: "bg-stamp", textColor: "text-white" },
+                        { name: "KORAPULSE Orange", color: "bg-lemon", textColor: "text-white" },
+                        { name: "Indigo", color: "bg-moss", textColor: "text-white" },
+                        { name: "Midnight", color: "bg-ink", textColor: "text-white" },
+                        { name: "Surface", color: "bg-paper border border-hairline", textColor: "text-ink" },
+                        { name: "Muted", color: "bg-mist", textColor: "text-ink" },
+                        { name: "Accent", color: "bg-stamp", textColor: "text-white" },
                       ].map((swatch) => (
                         <div
                           key={swatch.name}
