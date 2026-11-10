@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { Lightbulb, Check, X } from "lucide-react"
-import { useSubscription } from "@clerk/nextjs/experimental"
+import { useUser } from "@clerk/nextjs"
+import { canUseAI as planAllowsAI, resolvePlanFromMetadata } from "@/lib/plan-limits"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -32,13 +33,11 @@ export function GenerateIdeasPopover({ onGenerated }: GenerateIdeasPopoverProps)
   }[]>([])
   
   const [selectedIdea, setSelectedIdea] = useState(0)
-   const { data: subscription, isLoading } = useSubscription()
+  const { user, isLoaded } = useUser()
+  const planId = resolvePlanFromMetadata(user?.publicMetadata as any)
+  const canUseAI = planAllowsAI(planId)
+  const isLoading = !isLoaded
 
-   const canUseAI = !!subscription?.subscriptionItems?.some(item => {
-    const planSlug = item.plan.slug
-    return planSlug === "pro" || planSlug === "business"
-   })
-  
 
   const generateMutation = useMutation({
     mutationFn: async ({ businessType, targetAudience }: {

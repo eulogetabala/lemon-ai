@@ -102,7 +102,7 @@ export function usernameFromHandle(handle?: string | null): string {
     }
   }
 
-  return value.replace(/^@/, "").replace(/\/$/, "")
+  return value.replace(/^@/, "").replace(/^\/+/, "").replace(/\/+$/, "")
 }
 
 /**

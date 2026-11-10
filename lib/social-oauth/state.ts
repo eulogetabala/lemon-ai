@@ -12,6 +12,7 @@ export type OAuthStatePayload = {
   channelTypeId: string
   channelType: ChannelTypeEnum
   redirectTo?: string
+  workspaceId?: string | null
   exp: number
 }
 export function createOAuthState(payload: Omit<OAuthStatePayload, 'exp'> & {

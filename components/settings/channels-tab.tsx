@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
+import { resolvePlanFromMetadata } from '@/lib/plan-limits'
 import { ChannelType, ConnectedAccountType } from '@/types/channel.type';
 import { getChannelIcon } from '@/constants/channels';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -100,8 +101,8 @@ function ChannelTabContent() {
     })
 
     const { user } = useUser()
-    const userPlan = ((user?.publicMetadata as any)?.plan) || "free"
-    const isPaid = userPlan === "pro" || userPlan === "premium" || userPlan === "team" || userPlan === "enterprise"
+    const userPlan = resolvePlanFromMetadata(user?.publicMetadata as any)
+    const isPaid = userPlan === "pro" || userPlan === "team" || userPlan === "enterprise"
 
     const handleConnect = (channelTypeId: string) => {
         if (!channelTypeId) return

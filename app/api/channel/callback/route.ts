@@ -9,7 +9,8 @@ import {
 import { getPkceCookieName } from "@/lib/social-oauth/pkce";
 import { verifyOAuthState } from "@/lib/social-oauth/state";
 import { OAuthProvider } from "@/lib/social-oauth/types";
-import { checkChannelConnectLimit } from "@/lib/plan-limits";
+import { checkChannelConnectLimit, resolvePlanForUserId } from "@/lib/plan-limits-server";
+import { resolveActiveWorkspace } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? ""
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
             channelTypeId: state.channelTypeId,
             userAccessToken: token.accessToken,
             tokenExpiresAt: token.expiresAt ?? null,
+            workspaceId: state.workspaceId ?? null,
           })
           const response = buildRedirectUrl(appUrl, redirectTo, {
             fb_page_select: "true",
@@ -100,6 +102,9 @@ export async function GET(request: NextRequest) {
         console.log("callback profile:", JSON.stringify(profile, null, 2))
 
         const supabase = getSupabaseAdminClient()
+        // Attach the channel to the workspace the user started the connection
+        // from (validated against their memberships), else their default one.
+        const workspace = await resolveActiveWorkspace(supabase, state.userId, state.workspaceId ?? null)
 
         const payload = {
             user_id: state.userId,
@@ -113,6 +118,7 @@ export async function GET(request: NextRequest) {
             token_expires_at: token.expiresAt ?? null,
             is_connected: true,
             is_active: true,
+            workspace_id: workspace.id,
         }
 
         // Verify channel limit if connecting a new channel
@@ -120,16 +126,18 @@ export async function GET(request: NextRequest) {
             .from("user_channels")
             .select("id")
             .eq("user_id", state.userId)
+            .eq("workspace_id", workspace.id)
             .eq("channel_type_id", state.channelTypeId)
             .eq("is_connected", true)
             .maybeSingle()
 
         if (!existingChannel) {
-            const limitCheck = await checkChannelConnectLimit(supabase, state.userId, "free")
+            const planId = await resolvePlanForUserId(state.userId)
+            const limitCheck = await checkChannelConnectLimit(supabase, state.userId, planId, workspace.id)
             if (!limitCheck.allowed) {
                 const response = buildRedirectUrl(appUrl, redirectTo, {
                     connected: "false",
-                    error: "Limite de 3 canaux connectés atteinte pour le forfait Gratuit. Passez au forfait Pro.",
+                    error: limitCheck.message || "Limite de canaux atteinte pour votre forfait. Passez au forfait Pro.",
                 })
                 response.cookies.delete(pkceCookieName)
                 return response

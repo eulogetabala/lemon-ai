@@ -3,19 +3,19 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { buildProviderRedirectUri, getOAuthProvider, getRequestOrigin } from "@/lib/social-oauth";
 import { createPkcePair, getPkceCookieName } from "@/lib/social-oauth/pkce";
 import { createOAuthState } from "@/lib/social-oauth/state";
-import { checkChannelConnectLimit, getPlanFromClerkHas } from "@/lib/plan-limits";
-import { auth } from "@clerk/nextjs/server";
+import { checkChannelConnectLimit, resolvePlanForUserId } from "@/lib/plan-limits-server";
+import { getWorkspaceFromRequest } from "@/lib/request-workspace";
 import { NextRequest, NextResponse } from "next/server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
 export async function POST(request: NextRequest) {
     try {
-        const { has, userId: clerkUserId } = await auth();
         const { supabase, userId } = await getSupabaseServerClient();
         if (!userId) return NextResponse.json({ error: 'User not found' }, { status: 401 });
 
-        const planId = getPlanFromClerkHas(has);
+        const planId = await resolvePlanForUserId(userId);
+        const workspace = await getWorkspaceFromRequest(request, supabase, userId);
 
         const { channelTypeId } = await request.json();
         if (!channelTypeId) return NextResponse.json({ error: 'Channel type ID is required' }, { status: 400 });
@@ -36,12 +36,13 @@ export async function POST(request: NextRequest) {
             .from("user_channels")
             .select("id")
             .eq("user_id", userId)
+            .eq("workspace_id", workspace.id)
             .eq("channel_type_id", channelTypeId)
             .eq("is_connected", true)
             .maybeSingle();
 
         if (!existingChannel) {
-            const limitCheck = await checkChannelConnectLimit(supabase, userId, planId);
+            const limitCheck = await checkChannelConnectLimit(supabase, userId, planId, workspace.id);
             if (!limitCheck.allowed) {
                 return NextResponse.json(
                     { error: limitCheck.message || "Limite de canaux atteinte pour votre forfait. Passez au forfait Pro pour connecter des canaux illimités." },
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
             channelTypeId: channelType.id,
             channelType: normalizedType,
             redirectTo,
+            workspaceId: workspace.id,
         })
 
         const callbackUrl = buildProviderRedirectUri(normalizedType, requestOrigin || request.nextUrl.origin);

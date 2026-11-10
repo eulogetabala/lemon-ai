@@ -37,6 +37,7 @@ import CreatePostDialog from "@/components/schedule/create-post-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { ChannelType } from "@/types/channel.type";
 import ChannelAvatar from "@/components/channel-avatar";
+import WorkspaceSwitcher from "@/components/workspace-switcher";
 
 const navItems = [
   { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard },
@@ -113,6 +114,9 @@ const AppSidebar = () => {
                 <SidebarTrigger className="hidden h-7 w-7 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 transition-colors hover:bg-white/10 hover:text-white md:flex" />
               )}
             </div>
+
+            {/* Workspace switcher */}
+            <WorkspaceSwitcher isCollapsed={isCollapsed} />
 
             {/* Navigation items */}
             <SidebarGroup className="p-0">

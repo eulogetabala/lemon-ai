@@ -1,130 +1,121 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Check, Zap, Users, Building2, Layers, CreditCard, ArrowRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Check,
+  Zap,
+  Users,
+  Building2,
+  Layers,
+  CreditCard,
+  ArrowRight,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { PLAN_CONFIGS, type PlanId, type PlanInterval } from "@/lib/plan-limits";
 
-type BillingInterval = "monthly" | "yearly"
-
-const plans = [
-  {
-    id: "free",
-    name: "Gratuit",
-    icon: Layers,
-    description: "Idéal pour démarrer avec la planification sur les réseaux sociaux.",
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    badge: null,
-    highlight: false,
-    cta: "Offre actuelle",
-    disabled: true,
-    features: [
-      "1 canal connecté",
-      "1 concurrent sous veille",
-      "10 publications planifiées/mois",
-      "Analytiques de base",
-      "1 espace de travail",
-      "Support communautaire",
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    icon: Zap,
-    description: "Pour les créateurs et solopreneurs qui publient régulièrement.",
-    monthlyPrice: 12000,
-    yearlyPrice: 9600,
-    badge: "Le plus populaire",
-    highlight: true,
-    cta: "Passer à Pro",
-    disabled: false,
-    features: [
-      "Canaux connectés illimités",
-      "Veille concurrentielle illimitée",
-      "Publications planifiées illimitées",
-      "Analytiques et insights avancés",
-      "Suggestions de contenu intelligentes",
-      "5 espaces de travail",
-      "Support e-mail prioritaire",
-      "Vue calendrier",
-      "Planification en masse",
-    ],
-  },
-  {
-    id: "team",
-    name: "Équipe",
-    icon: Users,
-    description: "Pour les équipes en croissance qui gèrent plusieurs marques.",
-    monthlyPrice: 30000,
-    yearlyPrice: 24000,
-    badge: null,
-    highlight: false,
-    cta: "Passer à Équipe",
-    disabled: false,
-    features: [
-      "Tout ce qui est inclus dans Pro",
-      "Espaces de travail illimités",
-      "Collaboration d'équipe et rôles",
-      "Workflows d'approbation",
-      "Rapports en marque blanche",
-      "Liens personnalisés à votre marque",
-      "Support dédié",
-      "Accès API",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "Entreprise",
-    icon: Building2,
-    description: "Solutions sur mesure pour les grandes organisations.",
-    monthlyPrice: null,
-    yearlyPrice: null,
-    badge: null,
-    highlight: false,
-    cta: "Contacter l'équipe",
-    disabled: false,
-    features: [
-      "Tout ce qui est inclus dans Équipe",
-      "SSO et SAML",
-      "SLA personnalisé",
-      "Gestionnaire de compte dédié",
-      "Option on-premise",
-      "Intégrations personnalisées",
-      "SLA de disponibilité à 99,99 %",
-      "Revue de sécurité",
-    ],
-  },
-]
+const PLAN_ICONS: Record<PlanId, any> = {
+  free: Layers,
+  pro: Zap,
+  team: Users,
+  enterprise: Building2,
+};
 
 export default function BillingPage() {
-  const [interval, setInterval] = useState<BillingInterval>("monthly")
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const paymentStatus = searchParams.get("payment");
 
-  const displayPrice = (plan: (typeof plans)[0]) => {
-    if (plan.monthlyPrice === null) return "Sur mesure"
-    if (plan.monthlyPrice === 0) return "0 FCFA"
-    const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice
-    return `${price?.toLocaleString("fr-FR")} FCFA`
-  }
+  const [interval, setInterval] = useState<PlanInterval>("monthly");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Fetch current user billing status
+  const { data: billingData } = useQuery({
+    queryKey: ["billing-payments"],
+    queryFn: async () => {
+      const res = await fetch("/api/billing/payments");
+      return res.json();
+    },
+  });
+
+  const currentPlanId: PlanId = billingData?.plan || "free";
+
+  const handleCheckout = (planId: PlanId) => {
+    if (planId === "enterprise") {
+      window.open("mailto:contact@korapulse.com", "_blank");
+      return;
+    }
+    if (planId === "free") {
+      return;
+    }
+
+    router.push(`/billing/checkout?plan=${planId}&interval=${interval}`);
+  };
+
+  const planList = [
+    PLAN_CONFIGS.free,
+    PLAN_CONFIGS.pro,
+    PLAN_CONFIGS.team,
+    PLAN_CONFIGS.enterprise,
+  ];
 
   return (
     <div className="w-full max-w-5xl px-2 py-4 mx-auto">
+      {/* Notifications / Alerts */}
+      {paymentStatus === "success" && (
+        <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-50/80 dark:bg-emerald-950/20 p-4 flex items-center gap-3 text-emerald-900 dark:text-emerald-200">
+          <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
+          <div className="text-xs">
+            <span className="font-bold">Paiement validé avec succès !</span> Votre abonnement est désormais actif.
+          </div>
+        </div>
+      )}
+
+      {paymentStatus === "pending" && (
+        <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-50/80 dark:bg-amber-950/20 p-4 flex items-center gap-3 text-amber-900 dark:text-amber-200">
+          <AlertCircle className="size-5 text-amber-600 shrink-0" />
+          <div className="text-xs">
+            <span className="font-bold">Paiement en cours de traitement.</span> Sebpay finalise la transaction.
+          </div>
+        </div>
+      )}
+
+      {paymentStatus === "failed" && (
+        <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-50/80 dark:bg-red-950/20 p-4 flex items-center gap-3 text-red-900 dark:text-red-200">
+          <AlertCircle className="size-5 text-red-600 shrink-0" />
+          <div className="text-xs">
+            <span className="font-bold">Échec du paiement.</span> La transaction a été interrompue ou rejetée. Veuillez réessayer.
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-50/80 dark:bg-red-950/20 p-4 flex items-center gap-3 text-red-900 dark:text-red-200">
+          <AlertCircle className="size-5 text-red-600 shrink-0" />
+          <div className="text-xs font-semibold">{errorMessage}</div>
+        </div>
+      )}
+
       {/* Header — Studio Editorial */}
       <div className="mb-10 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-hairline bg-white dark:bg-mist/10 px-3.5 py-1.5 mb-5">
           <CreditCard className="size-3.5 text-moss" />
-          <span className="tag-code text-mute">Facturation & offres</span>
+          <span className="tag-code text-mute">Facturation & offres Sebpay</span>
         </div>
 
         <h1 className="text-[clamp(1.6rem,4vw,2.25rem)] font-extrabold tracking-[-0.035em] text-ink leading-[1.1]">
           Choisissez votre <span className="hi-swipe px-1.5">offre</span>
         </h1>
         <p className="text-[15px] text-mute max-w-lg mx-auto mt-3 leading-relaxed">
-          Passez à une offre supérieure, inférieure ou annulez à tout moment.
-          Pas d'engagement, pas de surprise.
+          Paiement sécurisé en FCFA par Mobile Money (MTN, Moov, Orange, Wave) ou carte bancaire via Sebpay.
         </p>
 
-        {/* Interval toggle — pill style matching landing */}
+        {/* Interval toggle */}
         <div className="mt-7 inline-flex items-center gap-0.5 rounded-full border border-hairline bg-mist/50 p-1">
           <button
             onClick={() => setInterval("monthly")}
@@ -156,124 +147,161 @@ export default function BillingPage() {
 
       {/* Plans grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {plans.map((plan) => {
-          const Icon = plan.icon
+        {planList.map((plan) => {
+          const Icon = PLAN_ICONS[plan.id] || Layers;
+          const isCurrent = currentPlanId === plan.id;
+
+          let displayPriceStr = "Sur mesure";
+          if (plan.monthlyPriceFCFA === 0) {
+            displayPriceStr = "0 FCFA";
+          } else if (plan.monthlyPriceFCFA !== null) {
+            const price =
+              interval === "yearly"
+                ? (plan.yearlyPriceFCFA ?? Math.round(plan.monthlyPriceFCFA * 0.8))
+                : plan.monthlyPriceFCFA;
+            displayPriceStr = `${price.toLocaleString("fr-FR")} FCFA`;
+          }
+
           return (
             <div
               key={plan.id}
               className={cn(
                 "relative flex flex-col rounded-2xl border transition-all duration-300",
                 plan.highlight
-                  ? "border-lemon/50 shadow-[0_16px_40px_-12px_rgba(198,255,26,0.2)]"
-                  : "border-hairline hover:-translate-y-1 hover:border-lemon/20 hover:shadow-[0_12px_32px_-10px_rgba(198,255,26,0.1)]"
+                  ? "border-lemon/50 shadow-[0_16px_40px_-12px_rgba(255,87,34,0.2)]"
+                  : "border-hairline hover:-translate-y-1 hover:border-lemon/20 hover:shadow-[0_12px_32px_-10px_rgba(255,87,34,0.1)]"
               )}
             >
-              {/* Inner surface */}
-              <div className={cn(
-                "flex flex-col flex-1 rounded-2xl p-6",
-                plan.highlight
-                  ? "bg-white dark:bg-card"
-                  : "bg-white dark:bg-card"
-              )}>
+              <div
+                className={cn(
+                  "flex flex-col flex-1 rounded-2xl p-6",
+                  plan.highlight ? "bg-white dark:bg-card" : "bg-white dark:bg-card"
+                )}
+              >
+                {plan.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                    <span className="inline-flex items-center rounded-full bg-lemon px-3 py-1 tag-code text-white font-bold lime-glow">
+                      {plan.badge}
+                    </span>
+                  </div>
+                )}
 
-              {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <span className="inline-flex items-center rounded-full bg-lemon px-3 py-1 tag-code text-white font-bold lime-glow">
-                    {plan.badge}
-                  </span>
+                {/* Plan icon */}
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center mb-4 border",
+                    plan.highlight
+                      ? "bg-lemon/15 border-lemon/25"
+                      : "bg-mist/50 border-hairline"
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "size-5",
+                      plan.highlight ? "text-moss" : "text-mute"
+                    )}
+                  />
                 </div>
-              )}
 
-              {/* Plan icon */}
-              <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center mb-4 border",
-                plan.highlight
-                  ? "bg-lemon/15 border-lemon/25"
-                  : "bg-mist/50 border-hairline"
-              )}>
-                <Icon className={cn(
-                  "size-5",
-                  plan.highlight ? "text-moss" : "text-mute"
-                )} />
-              </div>
-
-              <h3 className="text-sm font-extrabold tracking-tight text-ink">{plan.name}</h3>
-              <p className="text-xs text-mute mt-1 leading-relaxed">{plan.description}</p>
-
-              {/* Price */}
-              <div className="mt-5 mb-5">
-                <div className="flex items-end gap-1">
-                  <span className={cn(
-                    "text-2xl font-extrabold tracking-tight",
-                    plan.highlight ? "text-moss" : "text-ink"
-                  )}>
-                    {displayPrice(plan)}
-                  </span>
-                  {plan.monthlyPrice !== null && plan.monthlyPrice > 0 && (
-                    <span className="text-mute text-xs mb-1 font-medium">/mois</span>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-extrabold tracking-tight text-ink">
+                    {plan.name}
+                  </h3>
+                  {isCurrent && (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-500/20">
+                      Actif
+                    </span>
                   )}
                 </div>
-                {interval === "yearly" && plan.yearlyPrice && plan.yearlyPrice > 0 && (
-                  <p className="tag-code text-mute mt-1">
-                    Facturé {(plan.yearlyPrice * 12).toLocaleString("fr-FR")} FCFA/an
-                  </p>
-                )}
-                {plan.monthlyPrice === null && (
-                  <p className="tag-code text-mute mt-1">Adapté à vos besoins</p>
-                )}
-              </div>
+                <p className="text-xs text-mute mt-1 leading-relaxed">
+                  {plan.description}
+                </p>
 
-              {/* Features */}
-              <ul className="space-y-2.5 flex-1">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-xs">
-                    <div className={cn(
-                      "mt-0.5 size-4 shrink-0 rounded-full flex items-center justify-center",
-                      plan.highlight ? "bg-lemon/20" : "bg-mist"
-                    )}>
-                      <Check className={cn(
-                        "size-2.5",
-                        plan.highlight ? "text-moss" : "text-mute"
-                      )} />
-                    </div>
-                    <span className="text-ink/70 leading-tight">{feature}</span>
-                  </li>
-                ))}
-              </ul>
+                {/* Price */}
+                <div className="mt-5 mb-5">
+                  <div className="flex items-end gap-1">
+                    <span
+                      className={cn(
+                        "text-2xl font-extrabold tracking-tight",
+                        plan.highlight ? "text-moss" : "text-ink"
+                      )}
+                    >
+                      {displayPriceStr}
+                    </span>
+                    {plan.monthlyPriceFCFA !== null && plan.monthlyPriceFCFA > 0 && (
+                      <span className="text-mute text-xs mb-1 font-medium">/mois</span>
+                    )}
+                  </div>
+                  {interval === "yearly" && plan.yearlyPriceFCFA && plan.yearlyPriceFCFA > 0 && (
+                    <p className="tag-code text-mute mt-1">
+                      Facturé {(plan.yearlyPriceFCFA * 12).toLocaleString("fr-FR")} FCFA/an
+                    </p>
+                  )}
+                  {plan.monthlyPriceFCFA === null && (
+                    <p className="tag-code text-mute mt-1">Adapté à vos besoins</p>
+                  )}
+                </div>
 
-              <Button
-                className={cn(
-                  "w-full mt-6 rounded-full h-10 text-xs font-bold transition-all duration-200 gap-1.5",
-                  plan.highlight
-                    ? "bg-lemon text-white font-bold hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(255,87,34,0.4)] hover:-translate-y-0.5"
-                    : plan.disabled
+                {/* Features */}
+                <ul className="space-y-2.5 flex-1">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-xs">
+                      <div
+                        className={cn(
+                          "mt-0.5 size-4 shrink-0 rounded-full flex items-center justify-center",
+                          plan.highlight ? "bg-lemon/20" : "bg-mist"
+                        )}
+                      >
+                        <Check
+                          className={cn(
+                            "size-2.5",
+                            plan.highlight ? "text-moss" : "text-mute"
+                          )}
+                        />
+                      </div>
+                      <span className="text-ink/70 leading-tight">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Button
+                  className={cn(
+                    "w-full mt-6 rounded-full h-10 text-xs font-bold transition-all duration-200 gap-1.5 cursor-pointer",
+                    plan.highlight
+                      ? "bg-lemon text-white font-bold hover:bg-lemon/90 shadow-[0_6px_20px_-4px_rgba(255,87,34,0.4)] hover:-translate-y-0.5"
+                      : isCurrent
                       ? "bg-mist text-mute cursor-not-allowed"
                       : "bg-ink text-white hover:bg-ink/90"
-                )}
-                disabled={plan.disabled}
-                onClick={() => {
-                  if (plan.id === "enterprise") {
-                    window.open("mailto:contact@korapulse.com", "_blank")
-                  }
-                }}
-              >
-                {plan.cta}
-                {!plan.disabled && <ArrowRight className="size-3.5" />}
-              </Button>
+                  )}
+                  disabled={isCurrent}
+                  onClick={() => handleCheckout(plan.id)}
+                >
+                  {isCurrent ? (
+                    "Forfait actif"
+                  ) : (
+                    <>
+                      <span>{plan.cta}</span>
+                      <ArrowRight className="size-3.5" />
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
-          )
+          );
         })}
       </div>
 
       {/* Footer note */}
       <p className="text-center text-xs text-mute mt-10">
-        Toutes les offres incluent un essai gratuit de 14 jours. Aucune carte bancaire requise pour commencer.
+        Paiements sécurisés par Sebpay. Activation instantanée de vos quotas dès validation.
         Des questions ?{" "}
-        <a href="mailto:support@korapulse.com" className="underline underline-offset-2 hover:text-[#FF5722] transition-colors font-semibold">
+        <a
+          href="mailto:support@korapulse.com"
+          className="underline underline-offset-2 hover:text-[#FF5722] transition-colors font-semibold"
+        >
           Contacter le support
         </a>
       </p>
     </div>
-  )
+  );
 }

@@ -6,11 +6,13 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
 
 export async function POST(request: NextRequest) {
     try {
-        const { has, userId } = await auth();
+        const { userId } = await auth();
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const canUseAI = has({ plan: "pro" }) || has({ plan: "team" }) || has({ plan: "enterprise" }) || has({ plan: "premium" })
-        if (!canUseAI) {
+        const { canUseAI } = await import("@/lib/plan-limits");
+        const { resolvePlanForUserId } = await import("@/lib/plan-limits-server");
+        const planId = await resolvePlanForUserId(userId);
+        if (!canUseAI(planId)) {
             return NextResponse.json({ error: "La génération d'idées par IA nécessite le forfait Pro ou supérieur." }, { status: 403 });
         }
 

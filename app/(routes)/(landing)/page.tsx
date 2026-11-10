@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ChannelTypeEnum, getChannelIcon } from "@/constants/channels";
+import { PLAN_CONFIGS } from "@/lib/plan-limits";
 
 const navItems = [
   { label: "Fonctionnalités", href: "#fonctionnalites" },
@@ -294,10 +295,10 @@ const veillePeriods: {
 
 const plans = [
   {
-    name: "Gratuit",
-    monthly: 0,
-    annual: 0,
-    tagline: "Idéal pour démarrer avec la planification sur les réseaux sociaux.",
+    name: PLAN_CONFIGS.free.name,
+    monthly: PLAN_CONFIGS.free.monthlyPriceFCFA ?? 0,
+    annual: PLAN_CONFIGS.free.yearlyPriceFCFA ?? 0,
+    tagline: PLAN_CONFIGS.free.description,
     cta: "Commencer",
     highlight: false,
     features: [
@@ -310,11 +311,11 @@ const plans = [
     ],
   },
   {
-    name: "Pro",
-    monthly: 12000,
-    annual: 9600,
-    tagline: "Pour les créateurs et solopreneurs qui publient régulièrement.",
-    cta: "Passer à Pro",
+    name: PLAN_CONFIGS.pro.name,
+    monthly: PLAN_CONFIGS.pro.monthlyPriceFCFA ?? 12000,
+    annual: PLAN_CONFIGS.pro.yearlyPriceFCFA ?? 9600,
+    tagline: PLAN_CONFIGS.pro.description,
+    cta: PLAN_CONFIGS.pro.cta,
     highlight: true,
     features: [
       { label: "Canaux connectés illimités", active: true },
@@ -326,11 +327,11 @@ const plans = [
     ],
   },
   {
-    name: "Équipe",
-    monthly: 30000,
-    annual: 24000,
-    tagline: "Pour les équipes en croissance qui gèrent plusieurs marques.",
-    cta: "Passer à Équipe",
+    name: PLAN_CONFIGS.team.name,
+    monthly: PLAN_CONFIGS.team.monthlyPriceFCFA ?? 30000,
+    annual: PLAN_CONFIGS.team.yearlyPriceFCFA ?? 24000,
+    tagline: PLAN_CONFIGS.team.description,
+    cta: PLAN_CONFIGS.team.cta,
     highlight: false,
     features: [
       { label: "Tout ce qui est inclus dans Pro", active: true },

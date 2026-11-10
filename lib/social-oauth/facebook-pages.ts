@@ -14,6 +14,7 @@ export type FacebookPageSelectSession = {
   channelTypeId: string
   userAccessToken: string
   tokenExpiresAt: string | null
+  workspaceId?: string | null
 }
 
 export async function listFacebookPages(userAccessToken: string): Promise<FacebookPageOption[]> {
