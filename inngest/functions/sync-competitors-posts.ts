@@ -8,7 +8,7 @@ export const syncCompetitorsCron = inngest.createFunction(
     name: "Synchroniser les posts des concurrents (Veille concurrentielle)",
     triggers: [
       {
-        cron: "0 */2 * * *", // Toutes les 2 heures
+        cron: "*/30 * * * *", // Toutes les 30 minutes : les nouvelles publications arrivent vite
       },
     ],
   },

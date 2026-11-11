@@ -40,6 +40,12 @@ export interface CompetitorStat {
   posts: number
   followers: number
   engagementRate: number
+  /** Follower count at the end of the month (live count for the current month). */
+  followersEnd?: number
+  /** Followers gained during the month; null when no baseline exists yet. */
+  newFollowers?: number | null
+  /** What newFollowers is measured against. */
+  followersBasis?: "prev_month" | "tracking_start" | null
 }
 
 export interface CompetitorPost {

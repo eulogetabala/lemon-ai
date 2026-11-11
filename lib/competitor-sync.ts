@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { ChannelTypeEnum } from "@/constants/channels"
 import { decrypt, encrypt } from "@/lib/encryption"
 import { getOAuthProvider } from "@/lib/social-oauth"
+import { getSupabaseAdminClient } from "@/lib/supabase-server"
 import {
   aggregatePostsByMonth,
   postEngagementRate,
@@ -27,6 +28,7 @@ type FetchedPost = {
 
 type FetchedPage = {
   followers?: number
+  profileImage?: string
   posts: FetchedPost[]
   note?: string
 }
@@ -46,12 +48,54 @@ export type CompetitorPlatformRow = {
   profile_url: string | null
 }
 
-type Credential = { token: string } | null
+/** `alternates`: other connected tokens worth trying (Instagram: every Meta account). */
+type Credential = { token: string; alternates?: string[] } | null
+
+const MEDIA_BUCKET = "lemon"
+const STORAGE_MARKER = "/storage/v1/object/public/"
+
+/**
+ * Provider CDN image URLs (fbcdn, cdninstagram…) are signed and expire after a
+ * few days, which is why post images "disappeared". Copy each image once into
+ * our own storage and serve that stable URL instead. On any failure, keep the
+ * original URL so nothing is lost.
+ */
+async function mirrorImage(_supabase: SupabaseClient, sourceUrl: string, keyBase: string): Promise<string | null> {
+  if (!sourceUrl) return null
+  if (sourceUrl.includes(STORAGE_MARKER)) return sourceUrl
+  try {
+    // Facebook "lookaside" pictures are only served as images to its crawler UA.
+    const response = await fetch(
+      sourceUrl,
+      sourceUrl.includes("lookaside.fbsbx.com") ? { headers: { "User-Agent": FB_CRAWLER_UA } } : {},
+    )
+    if (!response.ok) return sourceUrl
+    const contentType = response.headers.get("content-type") ?? "image/jpeg"
+    // Not an image (e.g. an HTML page): storing it would only show a broken image.
+    if (!contentType.startsWith("image/")) return null
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength === 0 || bytes.byteLength > 8 * 1024 * 1024) return sourceUrl
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg"
+    const key = `${keyBase}.${ext}`
+    const storage = getSupabaseAdminClient().storage.from(MEDIA_BUCKET)
+    const { error } = await storage.upload(key, bytes, { contentType, upsert: true })
+    if (error) return sourceUrl
+    return storage.getPublicUrl(key).data.publicUrl
+  } catch {
+    return sourceUrl
+  }
+}
+
+function safeKey(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 120)
+}
 
 async function fetchJson(url: string, init: RequestInit = {}) {
   const response = await fetch(url, init)
   if (!response.ok) {
-    throw new Error(`Provider API ${response.status}: ${response.statusText}`)
+    const body = await response.json().catch(() => null)
+    const detail = body?.error?.error_user_msg ?? body?.error?.message ?? body?.message ?? response.statusText
+    throw new Error(`Provider API ${response.status}: ${detail}`)
   }
   return response.json()
 }
@@ -104,8 +148,6 @@ function extractFacebookPageId(url: string | null) {
 
 async function fetchPublicFacebookInfo(slug: string): Promise<number | undefined> {
   if (!slug) return undefined
-  if (slug.toLowerCase().includes("dreamwork")) return 882
-  if (slug.toLowerCase().includes("canal")) return 327000
 
   try {
     const res = await fetch(`https://www.facebook.com/${encodeURIComponent(slug)}`, {
@@ -164,6 +206,23 @@ async function fetchPublicFacebookInfo(slug: string): Promise<number | undefined
 // can be recovered without the Graph API. This is intentionally limited: the
 // logged-out page only exposes the latest posts, not the full history.
 
+/**
+ * Facebook exposes the same post under a numeric post id and under a base64
+ * "story" id ("S:_I<pageId>:<postId>[:…]"). Reduce both to the post id so a
+ * post is stored once.
+ */
+export function normalizeFacebookPostId(id: string): string {
+  if (!id || /^\d+$/.test(id)) return id
+  try {
+    const decoded = Buffer.from(id, "base64").toString("utf8")
+    const match = decoded.match(/^S:_I\d+:(\d+)/)
+    if (match) return match[1]
+  } catch {
+    // not base64
+  }
+  return id
+}
+
 function unixToIso(seconds: number): string {
   const ms = seconds > 1e12 ? seconds : seconds * 1000
   const date = new Date(ms)
@@ -220,29 +279,73 @@ function extractEngagement(node: unknown): { likes: number; comments: number; sh
   return { likes, comments, shares }
 }
 
+const FB_CRAWLER_UA = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+
+/** Facebook picture URL usable as a source (CDN, or crawler lookaside that we mirror). */
+function isFacebookImageUrl(u: unknown): u is string {
+  return typeof u === "string" && /^https:\/\/[^/]*(fbcdn\.net|lookaside\.fbsbx\.com)\//.test(u)
+}
+
+/**
+ * The picture of a public Facebook story. Only the story's own attachments are
+ * read: walking the whole node used to pick up page avatars or commenters'
+ * pictures, or nothing at all (photos are exposed as lookaside crawler URLs).
+ */
+function extractStoryImage(story: Record<string, any>): string {
+  const attachments: any[] = [
+    ...(Array.isArray(story.attachments) ? story.attachments : []),
+    ...(Array.isArray(story.comet_sections?.content?.story?.attachments)
+      ? story.comet_sections.content.story.attachments
+      : []),
+  ]
+  for (const att of attachments) {
+    const holder = att?.styles?.attachment ?? att
+    const medias = [
+      holder?.media,
+      ...(holder?.all_subattachments?.nodes ?? []).map((n: any) => n?.media),
+      ...(holder?.subattachments ?? []).map((n: any) => n?.media),
+    ]
+    for (const media of medias) {
+      if (!media) continue
+      const candidates = [
+        media.photo_image?.uri, // photo post
+        media.preferred_thumbnail?.image?.uri, // video poster (CDN)
+        media.thumbnailImage?.uri, // video poster (lookaside)
+        media.image?.uri,
+        media.viewer_image?.uri,
+        media.large_share_image?.uri, // link preview
+      ]
+      const found = candidates.find(isFacebookImageUrl)
+      if (found) return found
+    }
+  }
+  return ""
+}
+
 async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
   if (!slug) return []
-  if (slug.toLowerCase().includes("dreamwork")) {
-    return fetchPublicDreamWorkData().posts
-  }
-  if (slug.toLowerCase().includes("canal")) {
-    return fetchPublicCanalPlusData().posts
-  }
-
-  const posts: FetchedPost[] = []
-  const seen = new Set<string>()
-
-  // 1. Main timeline scrape
   try {
     const res = await fetch(`https://www.facebook.com/${encodeURIComponent(slug)}`, {
       headers: {
-        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "User-Agent": FB_CRAWLER_UA,
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",
     })
-    if (res.ok) {
-      const html = await res.text()
+    if (!res.ok) return []
+    return parseFacebookTimelineHtml(await res.text(), slug)
+  } catch {
+    // Best effort main page scrape
+    return []
+  }
+}
+
+/** Extracts the posts embedded in a public Facebook page's HTML. Exported for tests. */
+export function parseFacebookTimelineHtml(html: string, slug: string): FetchedPost[] {
+  const posts: FetchedPost[] = []
+  const seen = new Set<string>()
+  {
+    {
       const scriptRe = /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g
       let match: RegExpExecArray | null
 
@@ -262,7 +365,7 @@ async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
 
           let text = ""
           let url = ""
-          let mediaUrl = ""
+          const mediaUrl = extractStoryImage(node)
           let likes = 0
           let comments = 0
           let shares = 0
@@ -294,19 +397,6 @@ async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
               }
             }
 
-            if (!mediaUrl) {
-              const photo = o.photo_image
-              if (photo && typeof photo === "object" && typeof photo.uri === "string") {
-                mediaUrl = photo.uri
-              } else if (o.viewer_image && typeof o.viewer_image.uri === "string") {
-                mediaUrl = o.viewer_image.uri
-              } else if (typeof o.thumbnail_url === "string") {
-                mediaUrl = o.thumbnail_url
-              } else if (typeof o.uri === "string" && o.uri.includes("scontent") && !o.uri.includes("profile_picture") && !o.uri.includes("silhouette")) {
-                mediaUrl = o.uri
-              }
-            }
-
             const eng = extractEngagement(o)
             if (eng.likes > likes) likes = eng.likes
             if (eng.comments > comments) comments = eng.comments
@@ -317,11 +407,11 @@ async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
 
           walkSub(node)
 
+          pId = normalizeFacebookPostId(pId)
           if (pId && (text || url)) {
             if (!seen.has(pId)) {
               seen.add(pId)
               const pubAt = cTime && typeof cTime === "number" ? unixToIso(cTime) : new Date().toISOString()
-              const interactions = likes + comments + shares
               const fullPostUrl = url
                 ? (url.startsWith("http") ? url : `https://www.facebook.com${url}`)
                 : `https://www.facebook.com/${slug}`
@@ -335,8 +425,8 @@ async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
                 likes,
                 comments,
                 shares,
-                views: interactions > 0 ? interactions * 15 : 120,
-                impressions: interactions > 0 ? interactions * 22 : 180,
+                views: 0,
+                impressions: 0,
               })
             }
           }
@@ -356,7 +446,7 @@ async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
             }
           }
 
-          if ((o.post_id || o.id) && (o.creation_time || o.publish_time)) {
+          if (o.post_id && (o.creation_time || o.publish_time)) {
             extractStoryNode(o)
           }
 
@@ -366,127 +456,6 @@ async function fetchPublicFacebookPosts(slug: string): Promise<FetchedPost[]> {
         scanTree(data)
       }
     }
-  } catch {
-    // Best effort main page scrape
-  }
-
-  // 2. Fetch photos tab for historical media posts with real CDN images
-  try {
-    const resPh = await fetch(`https://www.facebook.com/${encodeURIComponent(slug)}/photos`, {
-      headers: {
-        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-      redirect: "follow",
-    })
-    if (resPh.ok) {
-      const htmlPh = await resPh.text()
-      const scriptRe = /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g
-      let matchPh: RegExpExecArray | null
-
-      while ((matchPh = scriptRe.exec(htmlPh)) !== null) {
-        const bodyPh = matchPh[1]
-        if (!bodyPh.includes("pageItems")) continue
-        let dataPh: unknown
-        try {
-          dataPh = JSON.parse(bodyPh)
-        } catch {
-          continue
-        }
-
-        const scanPhotos = (obj: unknown) => {
-          if (Array.isArray(obj)) {
-            for (const it of obj) scanPhotos(it)
-            return
-          }
-          if (!obj || typeof obj !== "object") return
-          const o = obj as Record<string, any>
-
-          if (o.pageItems && Array.isArray(o.pageItems.edges)) {
-            const now = Date.now()
-            o.pageItems.edges.forEach((edge: any, idx: number) => {
-              const edgeNode = edge?.node || {}
-              const photoNode = edgeNode.node || {}
-              const fbid = photoNode.id ? String(photoNode.id) : (edgeNode.id ? String(edgeNode.id) : `ph-${idx}`)
-              const img = photoNode.viewer_image?.uri || edgeNode.image?.uri || null
-              const url = edgeNode.url || (photoNode.id ? `https://www.facebook.com/photo.php?fbid=${photoNode.id}` : null)
-
-              const realText = photoNode.story?.message?.text || edgeNode.message?.text || photoNode.savable_description?.text || photoNode.creation_story?.message?.text || ""
-              let caption = realText || photoNode.accessibility_caption || "Publication officielle"
-              if (!realText && (caption.includes("image de") || caption === "Publication photo" || !caption.trim())) {
-                if (slug.toLowerCase().includes("banque") || slug.toLowerCase().includes("bch")) {
-                  if (idx === 0) {
-                    caption = "Consultez le calendrier sur les échéances de retrait et les modalités d’échange des pièces concernées. À noter : les pièces des gammes 2006 et 2024 restent valables."
-                  } else if (idx === 1) {
-                    caption = "Avis à la clientèle — Banque Congolaise de l'Habitat : informations sur les opérations guichet et dispositions d'ouverture."
-                  } else {
-                    caption = `Communication officielle Banque Congolaise de l'Habitat — Note d'information ${idx + 1}`
-                  }
-                } else {
-                  caption = "Publication officielle"
-                }
-              }
-
-              // Set publication timestamp accurately:
-              // Post 0: Nov 6 2026
-              // Post 1: Nov 4 2026 15:52 (as visible on Facebook)
-              // Others: staggered every 2.5 days across Nov & Oct
-              let pubDateIso: string
-              if (idx === 0) {
-                pubDateIso = new Date(now - 3 * 3600 * 1000).toISOString()
-              } else if (idx === 1) {
-                pubDateIso = "2026-11-04T14:52:00.000Z"
-              } else {
-                pubDateIso = new Date(now - (idx * 2.5 + 1) * 24 * 60 * 60 * 1000).toISOString()
-              }
-
-              // Update existing post with mediaUrl if already seen without image
-              const existingIdx = posts.findIndex((p) => p.providerPostId === fbid)
-              if (existingIdx >= 0) {
-                if (img && !posts[existingIdx].mediaUrl) {
-                  posts[existingIdx].mediaUrl = img
-                }
-                if (url && !posts[existingIdx].postUrl) {
-                  posts[existingIdx].postUrl = url
-                }
-                return
-              }
-
-              if (!seen.has(fbid)) {
-                seen.add(fbid)
-                const likes = Math.max(12, 34 - idx * 2)
-                const comments = Math.max(1, 6 - idx)
-                const shares = Math.max(1, 4 - idx)
-                const interactions = likes + comments + shares
-
-                const fullPhotoUrl = url
-                  ? (url.startsWith("http") ? url : `https://www.facebook.com${url}`)
-                  : `https://www.facebook.com/${slug}`
-
-                posts.push({
-                  providerPostId: fbid,
-                  content: caption,
-                  mediaUrl: img,
-                  postUrl: fullPhotoUrl,
-                  publishedAt: pubDateIso,
-                  likes,
-                  comments,
-                  shares,
-                  views: interactions * 15,
-                  impressions: interactions * 22,
-                })
-              }
-            })
-          }
-
-          for (const v of Object.values(o)) scanPhotos(v)
-        }
-
-        scanPhotos(dataPh)
-      }
-    }
-  } catch {
-    // Best effort photos scrape
   }
 
   return posts
@@ -516,240 +485,15 @@ export async function fetchPublicFollowerCount(
   profileUrl: string | null,
 ): Promise<number | undefined> {
   if (platform === "facebook") {
-    const slug = facebookSlug({ id: "", platform, handle, profile_url: profileUrl })
-    if (!slug) return undefined
-    if (slug.toLowerCase().includes("dreamwork")) return 882
-    if (slug.toLowerCase().includes("canal")) return 327000
-    return fetchPublicFacebookInfo(slug)
-  }
-  if (platform === "linkedin") {
     const slug = usernameFromHandle(handle) || usernameFromHandle(profileUrl)
-    if (slug.includes("banque-congolaise-de-l-habitat") || slug.toLowerCase().includes("bch")) {
-      return 1850
-    }
-    return 1200
+    if (!slug) return undefined
+    return fetchPublicFacebookInfo(slug)
   }
   return undefined
 }
 
-function fetchPublicDreamWorkData(): FetchedPage {
-  return {
-    followers: 882,
-    posts: [
-      {
-        providerPostId: "UzpfSTEwMDA2NDkwODg1MzA5OToxMjYzNjA3NDEyNDc5NTQy",
-        content: "Euloge Helloïm Tabala ⚡ L’ingénieur qui construit, optimise et élève le digital. Si l'on parle du développement web, d’ingénierie cloud et d’innovation technologique au Congo, un profil fait référence. Fondateur de DreamWork Agency, expert certifié et formateur passionné.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=100063561386654",
-        postUrl: "https://www.facebook.com/AboutMyJob/posts/pfbid0zGj9iLtDmKz9baYJutbi9h6yEThrLbawsCbXGeEAG7NFaTnoeKZwqHeVbXcFk3UBl",
-        publishedAt: "2026-11-05T14:30:00.000Z",
-        likes: 42,
-        comments: 8,
-        shares: 5,
-        views: 820,
-        impressions: 1150,
-      },
-      {
-        providerPostId: "UzpfSTEwMDAwMjQwNDYzMTYxMjoyNDUyMTkyNDA0MDgwNDQxMA==",
-        content: "DEVENEZ WORDPRESS MASTER EN 1 MOIS ! Vous rêvez de créer et gérer votre propre site web sans coder ? C’est possible avec notre formation 100% pratique sur WordPress ! 📌 Au programme : Installation, hébergement, thèmes, extensions et sécurisation.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=1325407239587976",
-        postUrl: "https://www.facebook.com/euloge.tabala/posts/pfbid0vbL9iL8bjLdXoSPf5wEczXN5L6gBh7Rjz5gdZQp1vsLwe27QtGjs12i1dPUdEaNul",
-        publishedAt: "2026-11-03T11:15:00.000Z",
-        likes: 28,
-        comments: 6,
-        shares: 3,
-        views: 540,
-        impressions: 780,
-      },
-      {
-        providerPostId: "1325407302921303",
-        content: "Parfois, la vie ne se déroule pas comme prévu. Et c’est ok. Il y a des jours où tout semble aller de travers. Des projets qui prennent du retard, des efforts qui ne sont pas reconnus, des rêves qui semblent s'éloigner. La clé est de continuer à avancer, pas à pas.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=526880259440682",
-        postUrl: "https://www.facebook.com/DreamWorkOfficiel/posts/pfbid036LpWQXFTPsQdxae9ptMPbm7W6MrzjRJQoq97sTojVCpX1q9ezPeop2TcK95JzbC3l",
-        publishedAt: "2026-10-30T09:45:00.000Z",
-        likes: 35,
-        comments: 11,
-        shares: 4,
-        views: 680,
-        impressions: 920,
-      },
-      {
-        providerPostId: "645139784281395",
-        content: "Je partage avec toi quelques conseils pour développer ton estime de soi... 1- Apprendre à s'aimer un peu plus : il n'y a pas meilleur remède pour mieux se sentir que d'avoir la confiance en soi. 2- S'accepter tel que l'on est et célébrer chaque petite victoire.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=526880272774014",
-        postUrl: "https://www.facebook.com/eulogecloud/posts/pfbid02okMKkQmfg16Pzr6Uet2uCC9iqy3m9kodrzWHZGpzS197Pcp1Y8VT4fQynbGWJf3Ql",
-        publishedAt: "2026-10-26T16:20:00.000Z",
-        likes: 24,
-        comments: 4,
-        shares: 2,
-        views: 480,
-        impressions: 650,
-      },
-      {
-        providerPostId: "UzpfSTEwMDA4NTQ2MTA0MTEyMzoxMjA1NjI4NDQxMjU2NDU",
-        content: "INFORMATIQUE, ORDINATEURS... ET MAL DE DOS. L’informatique fait partie intégrante de notre quotidien. Non seulement à la maison, mais aussi au bureau. Si l’ordinateur est devenu indispensable, adopter les bons réflexes de posture préserve votre efficacité et votre santé.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878991712950",
-        postUrl: "https://www.facebook.com/eulogecloud/posts/pfbid0y3rGGp4VFYT7NYqjeX8dAwYM73eZgiDjTgykuh3FGy5ZrwjDyRKzGyykwDQMPfiQl",
-        publishedAt: "2026-10-22T13:00:00.000Z",
-        likes: 19,
-        comments: 5,
-        shares: 3,
-        views: 390,
-        impressions: 520,
-      },
-      {
-        providerPostId: "UzpfSTEwMDA4NTQ2MTA0MTEyMzoxMTk0MTk1NDQyMzk5NzU",
-        content: "*CONSEILS POUR UN SITE WEB RÉUSSI ET EFFICACE* Design, ergonomie, contenus, référencement, rapidité, sécurité, accessibilité, mises à jour, reporting… La création d’un site Internet ne s’improvise pas ! Faites confiance à DreamWork Agency pour vos projets.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878955046287",
-        postUrl: "https://www.facebook.com/eulogecloud/posts/pfbid0Y2mvwxu21HxXUgQoWuHp4qdNDrfG7pFfhiAnnzgTfWXwp9cCJmLUhqJfVwvDuYKwl",
-        publishedAt: "2026-10-18T10:30:00.000Z",
-        likes: 31,
-        comments: 7,
-        shares: 6,
-        views: 610,
-        impressions: 840,
-      },
-      {
-        providerPostId: "UzpfSTEwMDA4NTQ2MTA0MTEyMzoxMTE3MzYyNzgzNDE2MzU",
-        content: "3 ASTUCES POUR DEVENIR UN BON DÉVELOPPEUR. Beaucoup de gens veulent être développeurs web, mais tous ne réussissent pas. Pourquoi ? Parce que certaines personnes n'ont pas les bonnes habitudes et pratiques. 1. Coder tous les jours. 2. Lire la doc. 3. Construire des projets réels.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878915046291",
-        postUrl: "https://www.facebook.com/eulogecloud/posts/pfbid0257Pz5xuuqHZhRXrA3djhjiztVVTN9nn7kK9N545LjjyyekqVvZ7cYAE83cSw4fQjl",
-        publishedAt: "2026-10-14T15:45:00.000Z",
-        likes: 27,
-        comments: 9,
-        shares: 4,
-        views: 520,
-        impressions: 710,
-      },
-      {
-        providerPostId: "365878875046295",
-        content: "🎯 [Formation Gratuite] Bénéficie de notre promo Lipanda en participant à la formation que nous organisons en Graphic Design. Tu passes tout ton temps à apprécier les créas des autres, viens apprendre à concevoir des visuels professionnels pour ta marque !",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878875046295",
-        postUrl: "https://www.facebook.com/DreamWorkOfficiel/posts/pfbid02EQMDfNAoB9txMBZRfSQXKd4hsJAJLfzLsfHgV1QzjkLiEt4gCnFJ6aigtudSKQBSl",
-        publishedAt: "2026-10-08T12:00:00.000Z",
-        likes: 38,
-        comments: 14,
-        shares: 8,
-        views: 740,
-        impressions: 980,
-      },
-    ],
-    note: "Données publiques Facebook réelles récupérées pour DreamWork_Agency (882 abonnés).",
-  }
-}
-
-function fetchPublicCanalPlusData(): FetchedPage {
-  return {
-    followers: 327000,
-    posts: [
-      {
-        providerPostId: "canalpluscongo-fb-post-20261108-champions-league",
-        content: "⚽ LE GRAND CHOC DE L'UEFA CHAMPIONS LEAGUE EN DIRECT ET EN HD SUR VOS CHAÎNES CANAL+ SPORT ! 🔥\nCe soir, vibrez au rythme du football européen au sommet. Qui sortira vainqueur de cette confrontation d'anthologie ? Donnez vos pronostics en commentaires ! 👇\n\n👉 Réabonnez-vous dès maintenant via MTN Mobile Money (*105#) ou Airtel Money (*128#) pour vivre chaque minute du spectacle sans coupure !",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=100064908853099",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalpluschampionsleague2026",
-        publishedAt: "2026-11-08T18:30:00.000Z",
-        likes: 1240,
-        comments: 185,
-        shares: 88,
-        views: 15400,
-        impressions: 21800,
-      },
-      {
-        providerPostId: "canalpluscongo-fb-post-20261106-promo-decodeur",
-        content: "💥 OFFRE EXCEPTIONNELLE CANAL+ CONGO ! 🇨🇬\nLe décodeur HD est à seulement 1 000 FCFA à partir de la formule ÉVASION ! 📺\nAccédez à plus de 200 chaînes, aux meilleures séries africaines, au cinéma mondial et aux plus grandes compétitions sportives.\n\n📍 Rendez-vous dans nos boutiques CANAL+ Store à Brazzaville (Plateau des 15 ans, Moungali, Bacongo) et Pointe-Noire (Grand Marché, Tié-Tié) ou chez nos distributeurs agréés.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=1325407239587976",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalplusdecodeur1000fcfa",
-        publishedAt: "2026-11-06T11:00:00.000Z",
-        likes: 980,
-        comments: 240,
-        shares: 112,
-        views: 18200,
-        impressions: 26500,
-      },
-      {
-        providerPostId: "canalpluscongo-fb-post-20261104-reabonnement-momo-airtel",
-        content: "📲 RÉABONNEZ-VOUS EN QUELQUES SECONDES DEPUIS CHEZ VOUS ! ⚡\nPlus besoin de vous déplacer en boutique. Réactivez vos images instantanément 24h/24 avec votre téléphone :\n▪️ MTN Mobile Money : Composez le *105# puis choisissez CANAL+\n▪️ Airtel Money : Composez le *128# puis suivez les étapes\nVos images reviennent automatiquement sur votre écran en moins de 2 minutes !",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=526880259440682",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalplusmomoairtelreabo",
-        publishedAt: "2026-11-04T15:15:00.000Z",
-        likes: 650,
-        comments: 74,
-        shares: 42,
-        views: 8900,
-        impressions: 12400,
-      },
-      {
-        providerPostId: "canalpluscongo-fb-post-20261102-serie-premiere",
-        content: "🎬 NOUVELLE SÉRIE ÉVÉNEMENT SUR CANAL+ PREMIÈRE ! 🍿\nIntrigues, passions, pouvoir et secrets de famille : ne manquez pas les épisodes inédits de votre série préférée, tournée avec les plus grands talents du continent africain.\n\nDiffusion tous les lundis et mardis à 20h30 sur CANAL+ PREMIÈRE (Canal 1). Êtes-vous prêts pour le dénouement ?",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878991712950",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalplusseriespremiere",
-        publishedAt: "2026-11-02T19:45:00.000Z",
-        likes: 730,
-        comments: 92,
-        shares: 38,
-        views: 9600,
-        impressions: 13800,
-      },
-      {
-        providerPostId: "canalpluscongo-fb-post-20261030-kids-nathan-tv",
-        content: "🌟 LES MERCREDIS ET WEEK-ENDS EN FAMILLE AVEC CANAL+ KIDS & NATHAN TV ! 🎈\nOffrez à vos enfants un univers ludo-éducatif d'exception : dessins animés préférés, découvertes scientifiques et apprentissage ludique du français et des mathématiques.\n\nActivez le contrôle parental et laissez-les s'épanouir en toute tranquillité sur les canaux jeunesse CANAL+.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878955046287",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalpluskidsprogrammes",
-        publishedAt: "2026-10-30T14:00:00.000Z",
-        likes: 410,
-        comments: 35,
-        shares: 19,
-        views: 5200,
-        impressions: 7500,
-      },
-      {
-        providerPostId: "canalpluscongo-fb-post-20261026-premier-league",
-        content: "🏆 LES DERBYS DE PREMIER LEAGUE & DE LIGUE 1 EN EXCLUSIVITÉ SUR CANAL+ SPORT ! 🇬🇧🇫🇷\nLes plus grandes stars mondiales du ballon rond s'affrontent pour le titre. Analyses pointues, ralentis immersifs et ambiance des grands soirs avec nos consultants.\n\nInstallez-vous confortablement et vivez la fièvre du football en direct !",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878915046291",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalplusfootballweekend",
-        publishedAt: "2026-10-26T17:30:00.000Z",
-        likes: 890,
-        comments: 110,
-        shares: 53,
-        views: 11500,
-        impressions: 16200,
-      },
-      {
-        providerPostId: "canalpluscongo-fb-post-20261021-semaine-decouverte",
-        content: "🎁 PRIVILÈGE FIDÉLITÉ : Pensez à réabonner avant l'échéance de votre formule ! ⏰\nEn réabonnant votre décodeur avant la date limite, profitez de la formule supérieure TOUT CANAL+ offerte pendant 15 jours consécutifs.\nPlus de 250 chaînes, tous les bouquets sport et cinéma pour toute la maison !",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=365878875046295",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalplustoutcanalbonus",
-        publishedAt: "2026-10-21T10:20:00.000Z",
-        likes: 520,
-        comments: 61,
-        shares: 29,
-        views: 7400,
-        impressions: 10800,
-      },
-      {
-        providerPostId: "canalpluscongo-fb-post-20261016-culture-congo",
-        content: "📺 LA CULTURE ET LA MUSIQUE DU CONGO À L'HONNEUR SUR VOS ÉCRANS ! 🇨🇬\nRetrouvez vos artistes préférés, les magazines de découverte et les émissions de débat au cœur des réalités congolaises.\nCANAL+, le partenaire incontournable de la création et du divertissement en République du Congo.",
-        mediaUrl: "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=526880272774014",
-        postUrl: "https://www.facebook.com/canalpluscongo/posts/pfbid0canalplusculturelocale",
-        publishedAt: "2026-10-16T16:00:00.000Z",
-        likes: 480,
-        comments: 48,
-        shares: 22,
-        views: 6300,
-        impressions: 9100,
-      },
-    ],
-    note: "Données publiques Facebook réelles récupérées pour Canal+ Congo (327 000 abonnés).",
-  }
-}
-
 async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
   const slug = facebookSlug(row)
-  if (slug.toLowerCase().includes("dreamwork")) {
-    return fetchPublicDreamWorkData()
-  }
-  if (slug.toLowerCase().includes("canal")) {
-    return fetchPublicCanalPlusData()
-  }
 
   const publicFallback = async (note: string): Promise<FetchedPage> => {
     const [publicFollowers, publicPosts] = await Promise.all([
@@ -767,48 +511,48 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
 
   try {
     const auth = { headers: { Authorization: `Bearer ${cred.token}` } }
-    let pageId = extractFacebookPageId(row.profile_url)
-    let followers: number | undefined
+    // A page can be addressed by numeric id or by its vanity name.
+    const pageRef = extractFacebookPageId(row.profile_url) || slug
+    if (!pageRef) return publicFallback("Nom ou URL Facebook manquant.")
 
-    if (!pageId) {
-      const q = usernameFromHandle(row.handle)
-      if (!q) return publicFallback("Nom ou URL Facebook manquant.")
-      const search = await fetchJson(
-        `https://graph.facebook.com/v19.0/search?type=page&q=${encodeURIComponent(q)}&fields=id,name,fan_count&limit=1`,
-        auth,
-      )
-      const page = search?.data?.[0]
-      if (!page) {
-        return publicFallback("Page Facebook trouvée via fallback public, mais pas via l’API Graph.")
-      }
-      pageId = page.id
-      followers = page.fan_count
-    } else {
-      const page = await fetchJson(
-        `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,fan_count`,
-        auth,
-      )
-      followers = page?.fan_count
-    }
-
-    const feed = await fetchJson(
-      `https://graph.facebook.com/v19.0/${pageId}/feed?fields=id,message,created_time,full_picture,permalink_url,shares,likes.summary(true),comments.summary(true)&limit=100`,
+    const page = await fetchJson(
+      `https://graph.facebook.com/v19.0/${encodeURIComponent(pageRef)}?fields=id,name,fan_count,followers_count,picture.type(large){url}`,
       auth,
     )
-    const posts: FetchedPost[] = (feed?.data ?? []).map((p: any) => ({
+    const pageId: string = page.id
+    const followers: number | undefined = page.followers_count ?? page.fan_count
+    const profileImage: string | undefined = page.picture?.data?.url
+
+    // Every post since the 1st of the previous month (so a competitor added
+    // mid-month shows its whole month, plus last month for comparison),
+    // following Graph pagination.
+    const since = Math.floor(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 1) / 1000)
+    const rawPosts: any[] = []
+    let next: string | null =
+      `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,created_time,full_picture,attachments{media,subattachments.limit(1){media}},permalink_url,shares,reactions.summary(true).limit(0),comments.summary(true).limit(0)&since=${since}&limit=100`
+    for (let pageCount = 0; next && pageCount < 10; pageCount++) {
+      const feed = await fetchJson(next, auth)
+      rawPosts.push(...(feed?.data ?? []))
+      next = feed?.paging?.next ?? null
+    }
+    const posts: FetchedPost[] = rawPosts.map((p: any) => ({
       providerPostId: p.id,
       content: p.message ?? "",
-      mediaUrl: p.full_picture ?? null,
+      mediaUrl:
+        p.full_picture ??
+        p.attachments?.data?.[0]?.media?.image?.src ??
+        p.attachments?.data?.[0]?.subattachments?.data?.[0]?.media?.image?.src ??
+        null,
       postUrl: p.permalink_url ?? null,
       publishedAt: p.created_time ?? new Date().toISOString(),
-      likes: p.likes?.summary?.total_count ?? 0,
+      likes: p.reactions?.summary?.total_count ?? 0,
       comments: p.comments?.summary?.total_count ?? 0,
       shares: p.shares?.count ?? 0,
       views: 0,
       impressions: 0,
     }))
 
-    if (posts.length > 0) return { followers, posts }
+    if (posts.length > 0) return { followers, profileImage, posts }
 
     // Graph answered but returned no posts — the token can read the page
     // audience but not a competitor feed. Complete with public scraping.
@@ -819,6 +563,7 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
         : await fetchPublicFacebookInfo(slug)
     return {
       followers: publicFollowers,
+      profileImage,
       posts: publicPosts,
       note:
         publicPosts.length > 0
@@ -856,26 +601,45 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
     }
   }
 
-  const auth = { headers: { Authorization: `Bearer ${cred.token}` } }
-
-  // 1. Find the user's Facebook page exposing an Instagram business account.
-  const accounts = await fetchJson(
-    "https://graph.facebook.com/v19.0/me/accounts?fields=id,name,instagram_business_account",
-    auth,
-  )
-  const igId = accounts?.data?.find(
-    (p: any) => p.instagram_business_account?.id,
-  )?.instagram_business_account?.id
-  if (!igId) {
-    return { posts: [], note: "Aucun compte Instagram Business lié à vos pages Facebook." }
+  // Business Discovery must be called AS an Instagram Business account. Connected
+  // tokens come in several shapes (Facebook user token, Facebook Page token,
+  // Instagram Login token), and the most recent Facebook channel is not always
+  // the Page linked to Instagram: try every connected Meta token.
+  const fields = `business_discovery.username(${username}){followers_count,media_count,profile_picture_url,media.limit(50){id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count}}`
+  const tokens = [...new Set([cred.token, ...(cred.alternates ?? [])])]
+  let discovery: any = null
+  let lastError = ""
+  let foundBusinessAccount = false
+  const resolveErrors: string[] = []
+  for (const token of tokens) {
+    const account = await resolveInstagramBusinessAccount(token, resolveErrors)
+    if (!account) continue
+    foundBusinessAccount = true
+    try {
+      discovery = await fetchJson(
+        `https://${account.host}/${account.id}?fields=${encodeURIComponent(fields)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      break
+    } catch (err) {
+      lastError = (err as Error).message
+    }
   }
-
-  // 2. Business Discovery — read the competitor's public profile + media.
-  const fields = `business_discovery.username(${username}){followers_count,media_count,media.limit(50){id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count}}`
-  const discovery = await fetchJson(
-    `https://graph.facebook.com/v19.0/${igId}?fields=${encodeURIComponent(fields)}`,
-    auth,
-  )
+  if (!foundBusinessAccount) {
+    return {
+      posts: [],
+      note: `Aucun compte Instagram Business/Créateur utilisable parmi vos comptes connectés. Reconnectez Instagram.${
+        resolveErrors.length ? ` Détail Meta : ${[...new Set(resolveErrors)].slice(0, 3).join(" | ")}` : ""
+      }`,
+    }
+  }
+  if (!discovery) {
+    // Typical: the competitor account is personal (not Business/Creator) or the username is wrong.
+    return {
+      posts: [],
+      note: `Profil Instagram « ${username} » illisible via Business Discovery (${lastError}). Le compte doit être professionnel (Business ou Créateur).`,
+    }
+  }
   const bd = discovery?.business_discovery
   if (!bd) return { posts: [], note: "Profil Instagram introuvable via Business Discovery." }
 
@@ -883,9 +647,8 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
     providerPostId: m.id,
     content: m.caption ?? "",
     mediaUrl:
-      m.media_type === "IMAGE" || m.media_type === "VIDEO" || m.media_type === "CAROUSEL_ALBUM"
-        ? m.media_url ?? null
-        : null,
+      // A VIDEO's media_url is the mp4 itself: show its thumbnail instead.
+      m.media_type === "VIDEO" ? m.thumbnail_url ?? null : m.media_url ?? m.thumbnail_url ?? null,
     postUrl: m.permalink ?? null,
     publishedAt: m.timestamp ?? new Date().toISOString(),
     likes: m.like_count ?? 0,
@@ -895,128 +658,40 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
     impressions: 0,
   }))
 
-  return { followers: bd.followers_count, posts }
+  return { followers: bd.followers_count, profileImage: bd.profile_picture_url, posts }
 }
 
-function getPublicLinkedinPosts(slug: string): FetchedPost[] {
-  const isBCH = slug.includes("banque-congolaise-de-l-habitat") || slug.toLowerCase().includes("bch")
-
-  if (isBCH) {
-    return [
-      {
-        providerPostId: "li-bch-retrait-pieces",
-        content: "À l'attention de notre aimable clientèle et de nos partenaires : Retrouvez le calendrier officiel des échéances de retrait et les modalités pratiques d'échange des pièces de monnaie aux guichets de la Banque Congolaise de l'Habitat. Les coupures et pièces des gammes 2006 et 2024 demeurent pleinement valables pour toutes vos transactions.",
-        mediaUrl: "https://scontent.fbzv3-2.fna.fbcdn.net/v/t39.30808-6/891880787_1144876198041825_685980946536765000_n.jpg?stp=dst-jpg_tt6&cstp=mx1706x2048&ctp=s1706x2048&_nc_cat=100&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=127cfc&_nc_ohc=IgnYsqQiMrYQ7kNvwFVhxWY&_nc_oc=AdrAw4zWenCnWUrT5hHXC-NOhJL_Dx9cQIN_gpDHuWpG076pbe0q7re4xet53vW1BW_1kAMgxP5EV8U6FgcRUp_7&_nc_zt=23&_nc_ht=scontent.fbzv3-2.fna&_nc_gid=lkewcZd-cq27BtdA0RlPSQ&_nc_ss=72289&oh=00_AQTXvzEDeDQ7iVd6NVhHtDGeshlFJxgTRsoft3KAcxSbyw&oe=6AF398FC",
-        postUrl: "https://www.linkedin.com/company/banque-congolaise-de-l-habitat/",
-        publishedAt: "2026-11-05T09:40:00.000Z",
-        likes: 48,
-        comments: 7,
-        shares: 12,
-        views: 1420,
-        impressions: 2150,
-      },
-      {
-        providerPostId: "li-bch-badea-financement",
-        content: "Accompagnement du secteur privé et inclusion financière : La Banque Congolaise de l'Habitat (BCH) renforce ses capacités de financement en faveur des PME et acteurs économiques congolais grâce à la mise en œuvre de la ligne de crédit stratégique signée avec la BADEA (10 millions d'euros).",
-        mediaUrl: "https://scontent.fbzv3-2.fna.fbcdn.net/v/t39.30808-6/885729749_1143071371555641_7630925012496131781_n.jpg?stp=dst-jpg_tt6&cstp=mx1066x1280&ctp=s1066x1280&_nc_cat=110&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=127cfc&_nc_ohc=24n0a_LN2PcQ7kNvwFURJ2P&_nc_oc=AdpBhFFwIMfAPiOIcofoqDsR6zJPgXgAWJYj298nGD-AAR7AjjsxvZGUrnoBF_VfbLtqwYkze0znqAY6i3Z_W17H&_nc_zt=23&_nc_ht=scontent.fbzv3-2.fna&_nc_gid=lkewcZd-cq27BtdA0RlPSQ&_nc_ss=72289&oh=00_AQRxhODZEUuJYpQxi4-qFAYfUWTNKfXAPnZADt8G2RkqXg&oe=6AF37F93",
-        postUrl: "https://www.linkedin.com/company/banque-congolaise-de-l-habitat/",
-        publishedAt: "2026-11-02T14:15:00.000Z",
-        likes: 76,
-        comments: 11,
-        shares: 19,
-        views: 2890,
-        impressions: 4120,
-      },
-      {
-        providerPostId: "li-bch-siege-social",
-        content: "Avancement des travaux du nouveau siège social de la Banque Congolaise de l'Habitat à Brazzaville : Le futur complexe architectural R+7 situé avenue Amilcar Cabral progresse conformément au calendrier. Un espace moderne de haute technologie conçu pour offrir un service d'excellence à nos clients et partenaires institutionnels.",
-        mediaUrl: "https://scontent.fbzv3-2.fna.fbcdn.net/v/t39.30808-6/891880787_1144876198041825_685980946536765000_n.jpg?stp=dst-jpg_tt6&cstp=mx1706x2048&ctp=s1706x2048&_nc_cat=100&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=127cfc&_nc_ohc=IgnYsqQiMrYQ7kNvwFVhxWY&_nc_oc=AdrAw4zWenCnWUrT5hHXC-NOhJL_Dx9cQIN_gpDHuWpG076pbe0q7re4xet53vW1BW_1kAMgxP5EV8U6FgcRUp_7&_nc_zt=23&_nc_ht=scontent.fbzv3-2.fna&_nc_gid=lkewcZd-cq27BtdA0RlPSQ&_nc_ss=72289&oh=00_AQTXvzEDeDQ7iVd6NVhHtDGeshlFJxgTRsoft3KAcxSbyw&oe=6AF398FC",
-        postUrl: "https://www.linkedin.com/company/banque-congolaise-de-l-habitat/",
-        publishedAt: "2026-10-24T09:00:00.000Z",
-        likes: 94,
-        comments: 15,
-        shares: 23,
-        views: 3450,
-        impressions: 5200,
-      },
-      {
-        providerPostId: "li-bch-plan-strategique",
-        content: "Plan Stratégique BCH 2026-2030 : Consolidation de nos trois piliers majeurs — accélération de la transformation digitale (plateforme BCH Net & solutions DefaCash), appui renforcé aux projets immobiliers et d'habitat, et excellence relationnelle pour les entreprises.",
-        mediaUrl: "https://scontent.fbzv3-2.fna.fbcdn.net/v/t39.30808-6/885729749_1143071371555641_7630925012496131781_n.jpg?stp=dst-jpg_tt6&cstp=mx1066x1280&ctp=s1066x1280&_nc_cat=110&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=127cfc&_nc_ohc=24n0a_LN2PcQ7kNvwFURJ2P&_nc_oc=AdpBhFFwIMfAPiOIcofoqDsR6zJPgXgAWJYj298nGD-AAR7AjjsxvZGUrnoBF_VfbLtqwYkze0znqAY6i3Z_W17H&_nc_zt=23&_nc_ht=scontent.fbzv3-2.fna&_nc_gid=lkewcZd-cq27BtdA0RlPSQ&_nc_ss=72289&oh=00_AQRxhODZEUuJYpQxi4-qFAYfUWTNKfXAPnZADt8G2RkqXg&oe=6AF37F93",
-        postUrl: "https://www.linkedin.com/company/banque-congolaise-de-l-habitat/",
-        publishedAt: "2026-10-14T11:45:00.000Z",
-        likes: 63,
-        comments: 9,
-        shares: 14,
-        views: 2110,
-        impressions: 3340,
-      },
-      {
-        providerPostId: "li-bch-bad-kintele",
-        content: "Retour sur les Assemblées annuelles de la Banque Africaine de Développement (BAD) à Kintélé : La Banque Congolaise de l'Habitat a réaffirmé son engagement aux côtés des bailleurs de fonds panafricains pour financer l'habitat durable et les infrastructures en République du Congo.",
-        mediaUrl: "https://scontent.fbzv3-2.fna.fbcdn.net/v/t39.30808-6/891880787_1144876198041825_685980946536765000_n.jpg?stp=dst-jpg_tt6&cstp=mx1706x2048&ctp=s1706x2048&_nc_cat=100&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=127cfc&_nc_ohc=IgnYsqQiMrYQ7kNvwFVhxWY&_nc_oc=AdrAw4zWenCnWUrT5hHXC-NOhJL_Dx9cQIN_gpDHuWpG076pbe0q7re4xet53vW1BW_1kAMgxP5EV8U6FgcRUp_7&_nc_zt=23&_nc_ht=scontent.fbzv3-2.fna&_nc_gid=lkewcZd-cq27BtdA0RlPSQ&_nc_ss=72289&oh=00_AQTXvzEDeDQ7iVd6NVhHtDGeshlFJxgTRsoft3KAcxSbyw&oe=6AF398FC",
-        postUrl: "https://www.linkedin.com/company/banque-congolaise-de-l-habitat/",
-        publishedAt: "2026-10-03T16:20:00.000Z",
-        likes: 88,
-        comments: 12,
-        shares: 21,
-        views: 3020,
-        impressions: 4680,
-      },
-    ]
+/** Instagram Business account usable for Business Discovery with this token, if any. */
+async function resolveInstagramBusinessAccount(
+  token: string,
+  errors: string[] = [],
+): Promise<{ id: string; host: string } | null> {
+  const get = async (url: string) => {
+    try {
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      const body = await r.json().catch(() => null)
+      if (r.ok) return body
+      const host = new URL(url).host
+      errors.push(`${host}: ${body?.error?.message ?? r.status}`)
+      return null
+    } catch (err) {
+      errors.push((err as Error).message)
+      return null
+    }
   }
-
-  const now = Date.now()
-  const cleanName = slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-  return [
-    {
-      providerPostId: `li-${slug}-1`,
-      content: `Actualité institutionnelle et projets stratégiques de ${cleanName} : nos équipes poursuivent le déploiement de solutions innovantes au service de nos partenaires et clients.`,
-      mediaUrl: null,
-      postUrl: `https://www.linkedin.com/company/${slug}/`,
-      publishedAt: new Date(now - 2 * 24 * 3600 * 1000).toISOString(),
-      likes: 42,
-      comments: 6,
-      shares: 8,
-      views: 1200,
-      impressions: 1850,
-    },
-    {
-      providerPostId: `li-${slug}-2`,
-      content: `${cleanName} renforce son engagement pour le développement économique et l'excellence opérationnelle. Merci à l'ensemble de nos collaborateurs et partenaires pour leur confiance.`,
-      mediaUrl: null,
-      postUrl: `https://www.linkedin.com/company/${slug}/`,
-      publishedAt: new Date(now - 8 * 24 * 3600 * 1000).toISOString(),
-      likes: 58,
-      comments: 9,
-      shares: 11,
-      views: 1650,
-      impressions: 2400,
-    },
-    {
-      providerPostId: `li-${slug}-3`,
-      content: `Transformation numérique et relation client : découvrez les nouvelles orientations stratégiques présentées par la direction de ${cleanName}.`,
-      mediaUrl: null,
-      postUrl: `https://www.linkedin.com/company/${slug}/`,
-      publishedAt: new Date(now - 20 * 24 * 3600 * 1000).toISOString(),
-      likes: 71,
-      comments: 12,
-      shares: 15,
-      views: 2100,
-      impressions: 3100,
-    },
-  ]
-}
-
-function fetchPublicLinkedinData(slug: string, _row: CompetitorPlatformRow): FetchedPage {
-  const isBCH = slug.includes("banque-congolaise-de-l-habitat") || slug.toLowerCase().includes("bch")
-  const followers = isBCH ? 1850 : 1200
-  const posts = getPublicLinkedinPosts(slug)
-  return {
-    followers,
-    posts,
-    note: "Données de veille et publications professionnelles synchronisées.",
-  }
+  const fb = "graph.facebook.com/v19.0"
+  // Facebook Page token: /me is the Page.
+  const page = await get(`https://${fb}/me?fields=instagram_business_account`)
+  if (page?.instagram_business_account?.id) return { id: page.instagram_business_account.id, host: fb }
+  // Facebook user token: look through the Pages they manage.
+  const accounts = await get(`https://${fb}/me/accounts?fields=instagram_business_account&limit=100`)
+  const linked = accounts?.data?.find((p: any) => p?.instagram_business_account?.id)?.instagram_business_account?.id
+  if (linked) return { id: linked, host: fb }
+  // Instagram Login token: /me is the Instagram professional account itself.
+  const ig = "graph.instagram.com/v21.0"
+  const me = await get(`https://${ig}/me?fields=user_id,account_type`)
+  if (me?.user_id || me?.id) return { id: String(me.user_id ?? me.id), host: ig }
+  return null
 }
 
 async function fetchLinkedinPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
@@ -1082,8 +757,10 @@ async function fetchLinkedinPage(row: CompetitorPlatformRow, cred: Credential): 
     }
   }
 
-  // Public intelligence fallback
-  return fetchPublicLinkedinData(slug, row)
+  return {
+    posts: [],
+    note: "LinkedIn ne donne pas accès aux publications ni aux abonnés des pages d'autres entreprises. Seules vos propres pages peuvent être lues.",
+  }
 }
 
 async function fetchTiktokPage(_row: CompetitorPlatformRow, _cred: Credential): Promise<FetchedPage> {
@@ -1122,9 +799,8 @@ export async function getPlatformCredential(
   userId: string,
   platform: string,
 ): Promise<Credential> {
-  // Instagram competitor data flows through the Facebook Graph API, so we use
-  // the user's FACEBOOK token (with instagram_basic + instagram_manage_insights).
-  const credentialPlatform = platform === "instagram" ? "facebook" : platform
+  if (platform === "instagram") return getMetaCredentials(supabase, userId)
+  const credentialPlatform = platform
 
   const typeRes = await supabase
     .from("channel_types")
@@ -1140,7 +816,9 @@ export async function getPlatformCredential(
     .eq("user_id", userId)
     .eq("channel_type_id", typeId)
     .eq("is_connected", true)
-    .single()
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   const channel = chRes.data
   if (!channel?.access_token) return null
@@ -1173,6 +851,51 @@ export async function getPlatformCredential(
   return { token }
 }
 
+/** Every connected Facebook and Instagram token of the user (Instagram Business Discovery). */
+async function getMetaCredentials(supabase: SupabaseClient, userId: string): Promise<Credential> {
+  const { data: types } = await supabase.from("channel_types").select("id, type").in("type", ["instagram", "facebook"])
+  const typeIds = (types ?? []).map((t: any) => t.id)
+  if (typeIds.length === 0) return null
+  const order = (id: string) => ((types ?? []).find((t: any) => t.id === id)?.type === "instagram" ? 0 : 1)
+  const { data: channels } = await supabase
+    .from("user_channels")
+    .select("id, channel_type_id, access_token, refresh_token, token_expires_at, created_at")
+    .eq("user_id", userId)
+    .in("channel_type_id", typeIds)
+    .eq("is_connected", true)
+    .order("created_at", { ascending: false })
+  const sorted = (channels ?? []).sort((a: any, b: any) => order(a.channel_type_id) - order(b.channel_type_id))
+  const tokens: string[] = []
+  for (const c of sorted as any[]) {
+    let token = c.access_token ? decrypt(c.access_token) : null
+    const expiresAt = c.token_expires_at ? new Date(c.token_expires_at).getTime() : 0
+    // Instagram long-lived tokens last 60 days: extend them a week before expiry.
+    if (token && order(c.channel_type_id) === 0 && expiresAt && Date.now() > expiresAt - 7 * 86_400_000) {
+      const refreshToken = c.refresh_token ? decrypt(c.refresh_token) : null
+      const provider = getOAuthProvider(ChannelTypeEnum.INSTAGRAM)
+      if (refreshToken && provider && Date.now() < expiresAt) {
+        try {
+          const refreshed = await provider.refreshToken({ refreshToken })
+          await supabase
+            .from("user_channels")
+            .update({
+              access_token: encrypt(refreshed.accessToken),
+              refresh_token: encrypt(refreshed.refreshToken ?? refreshed.accessToken),
+              token_expires_at: refreshed.expiresAt,
+            })
+            .eq("id", c.id)
+          token = refreshed.accessToken
+        } catch (err) {
+          console.warn("[instagram] token refresh failed", (err as Error).message)
+        }
+      }
+    }
+    if (token) tokens.push(token)
+  }
+  if (tokens.length === 0) return null
+  return { token: tokens[0], alternates: tokens.slice(1) }
+}
+
 export async function syncCompetitorPlatform(
   supabase: SupabaseClient,
   row: CompetitorPlatformRow,
@@ -1203,18 +926,45 @@ export async function syncCompetitorPlatform(
       handle: canonicalSlug || row.handle,
       profile_url: canonicalUrl || row.profile_url,
       followers: typeof page.followers === "number" ? page.followers : undefined,
+      ...(page.profileImage
+        ? { profile_image: (await mirrorImage(supabase, page.profileImage, `competitors/${row.id}/avatar`)) ?? undefined }
+        : {}),
       synced_at: new Date().toISOString(),
       last_error: page.note ?? null,
     })
     .eq("id", row.id)
 
+  // Images already copied to our storage are reused instead of re-downloaded.
+  const { data: storedPosts } = await supabase
+    .from("competitor_posts")
+    .select("provider_post_id, media_url")
+    .eq("platform_id", row.id)
+  const storedMedia = new Map<string, string>(
+    (storedPosts ?? [])
+      .filter((p: any) => typeof p.media_url === "string" && p.media_url.includes(STORAGE_MARKER))
+      .map((p: any) => [String(p.provider_post_id), p.media_url as string]),
+  )
+  // Any image already known for a post (even a provider URL), kept when a later
+  // sync — e.g. the public scrape after a Graph sync — does not see it again.
+  const knownMedia = new Map<string, string>(
+    (storedPosts ?? [])
+      .filter((p: any) => typeof p.media_url === "string" && p.media_url)
+      .map((p: any) => [String(p.provider_post_id), p.media_url as string]),
+  )
+
   // Upsert real posts, deduplicated by provider post id.
   for (const post of page.posts) {
+    const mirrored = post.mediaUrl
+      ? storedMedia.get(post.providerPostId) ??
+        (await mirrorImage(supabase, post.mediaUrl, `competitors/${row.id}/${safeKey(post.providerPostId)}`))
+      : null
+    const mediaUrl = mirrored ?? knownMedia.get(post.providerPostId) ?? null
     const payload: Record<string, unknown> = {
       platform_id: row.id,
       provider_post_id: post.providerPostId,
       content: post.content,
-      media_url: post.mediaUrl ?? null,
+      media_url: mediaUrl,
+      post_url: post.postUrl ?? null,
       published_at: post.publishedAt,
       likes: post.likes,
       comments: post.comments,
@@ -1224,9 +974,17 @@ export async function syncCompetitorPlatform(
       synced_at: new Date().toISOString(),
     }
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from("competitor_posts")
       .upsert(payload, { onConflict: "platform_id,provider_post_id" })
+
+    // Database without the post_url column (migration 20261103 not applied).
+    if (error && /post_url/.test(error.message)) {
+      delete payload.post_url
+      ;({ error } = await supabase
+        .from("competitor_posts")
+        .upsert(payload, { onConflict: "platform_id,provider_post_id" }))
+    }
 
     if (error) {
       console.error("[competitor_posts upsert error]", error.message)
@@ -1252,22 +1010,47 @@ export async function syncCompetitorPlatform(
     }
   }
 
+  const liveFollowers = typeof page.followers === "number" && page.followers > 0 ? page.followers : null
+
+  // Was there already a snapshot for the current month? If not, this is the
+  // first sync of the month: its follower count is the month's baseline, used
+  // to compute "nouveaux abonnés du mois".
+  const { data: currentRow } = await supabase
+    .from("competitor_stats")
+    .select("id")
+    .eq("platform_id", row.id)
+    .eq("month", currentMonth)
+    .maybeSingle()
+
   for (const agg of months) {
-    await supabase.from("competitor_stats").upsert(
-      {
-        platform_id: row.id,
-        month: agg.month,
-        impressions: agg.impressions,
-        likes: agg.likes,
-        comments: agg.comments,
-        shares: agg.shares,
-        posts: agg.posts,
-        followers: agg.month === currentMonth && typeof page.followers === "number" ? page.followers : 0,
-        engagement_rate: agg.engagementRate,
-        synced_at: new Date().toISOString(),
-      },
-      { onConflict: "platform_id,month" },
-    )
+    const payload: Record<string, unknown> = {
+      platform_id: row.id,
+      month: agg.month,
+      impressions: agg.impressions,
+      likes: agg.likes,
+      comments: agg.comments,
+      shares: agg.shares,
+      posts: agg.posts,
+      engagement_rate: agg.engagementRate,
+      synced_at: new Date().toISOString(),
+    }
+    // Only the current month gets the live follower count. Past months keep
+    // the last value recorded during that month (never overwritten with 0).
+    if (agg.month === currentMonth && liveFollowers !== null) {
+      payload.followers = liveFollowers
+      if (!currentRow) payload.followers_start = liveFollowers
+    }
+
+    let { error } = await supabase
+      .from("competitor_stats")
+      .upsert(payload, { onConflict: "platform_id,month" })
+
+    // Database without the followers_start column yet: retry without it.
+    if (error && "followers_start" in payload && /followers_start/.test(error.message)) {
+      delete payload.followers_start
+      ;({ error } = await supabase.from("competitor_stats").upsert(payload, { onConflict: "platform_id,month" }))
+    }
+    if (error) console.error("[competitor_stats upsert error]", error.message)
   }
 
   return {
