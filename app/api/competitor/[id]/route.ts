@@ -8,6 +8,7 @@ import {
   buildProfileUrl,
   normalizeFacebookPostId,
 } from "@/lib/competitor-sync"
+import { isSyncDue } from "@/lib/competitor-sync-schedule"
 import { aggregatePostsByMonth } from "@/lib/competitor-stats"
 import {
   currentMonthKey,
@@ -79,29 +80,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let stats = statRows ?? []
     let posts = postRows ?? []
 
-    // Auto-refresh: trigger sync if 0 posts OR if last sync is older than 30 minutes
-    const postCountByPlatform = new Map<string, number>()
-    for (const post of posts) {
-      postCountByPlatform.set(post.platform_id, (postCountByPlatform.get(post.platform_id) ?? 0) + 1)
-    }
-
+    // Auto-refresh : uniquement les plateformes arrivées à échéance. Le délai
+    // dépend du réseau (voir lib/competitor-sync-schedule.ts) afin de ne pas
+    // marteler LinkedIn à chaque ouverture de la fiche.
     let needsRefresh = false
-    const THIRTY_MINUTES_MS = 30 * 60 * 1000
-    const nowTime = Date.now()
 
     for (const pRow of storedPlatforms) {
-      const count = postCountByPlatform.get(pRow.id) ?? 0
-      const lastSyncedTime = pRow.synced_at ? new Date(pRow.synced_at).getTime() : 0
-      const isStale = nowTime - lastSyncedTime > THIRTY_MINUTES_MS
-
-      if (count === 0 || isStale) {
-        try {
-          const cred = await getPlatformCredential(supabase, userId, pRow.platform)
-          await syncCompetitorPlatform(supabase, pRow, cred)
-          needsRefresh = true
-        } catch (err) {
-          console.error("[competitor platform auto-sync] error:", err)
-        }
+      if (!isSyncDue(pRow)) continue
+      try {
+        const cred = await getPlatformCredential(supabase, userId, pRow.platform)
+        await syncCompetitorPlatform(supabase, pRow, cred)
+        needsRefresh = true
+      } catch (err) {
+        console.error("[competitor platform auto-sync] error:", err)
       }
     }
 

@@ -1,6 +1,7 @@
 import { inngest } from "../client";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 import { getPlatformCredential, syncCompetitorPlatform } from "@/lib/competitor-sync";
+import { isSyncDue } from "@/lib/competitor-sync-schedule";
 
 export const syncCompetitorsCron = inngest.createFunction(
   {
@@ -8,7 +9,9 @@ export const syncCompetitorsCron = inngest.createFunction(
     name: "Synchroniser les posts des concurrents (Veille concurrentielle)",
     triggers: [
       {
-        cron: "*/30 * * * *", // Toutes les 30 minutes : les nouvelles publications arrivent vite
+        // Tick toutes les 30 minutes ; chaque plateforme est ensuite filtrée par
+        // isSyncDue() selon la fréquence de son réseau (voir competitor-sync-schedule).
+        cron: "*/30 * * * *",
       },
     ],
   },
@@ -32,8 +35,15 @@ export const syncCompetitorsCron = inngest.createFunction(
 
       let syncedCount = 0;
       let errorCount = 0;
+      let skippedCount = 0;
+      const now = Date.now();
 
       for (const row of platforms) {
+        if (!isSyncDue(row, now)) {
+          skippedCount++;
+          continue;
+        }
+
         try {
           const comp = Array.isArray(row.competitors) ? row.competitors[0] : row.competitors;
           const userId = (comp as any)?.user_id;
@@ -64,12 +74,15 @@ export const syncCompetitorsCron = inngest.createFunction(
         }
       }
 
-      logger.info(`Competitor sync completed: ${syncedCount} succeeded, ${errorCount} failed out of ${platforms.length}`);
+      logger.info(
+        `Competitor sync completed: ${syncedCount} succeeded, ${errorCount} failed, ${skippedCount} skipped (not due) out of ${platforms.length}`,
+      );
 
       return {
         total: platforms.length,
         syncedCount,
         errorCount,
+        skippedCount,
       };
     });
 
