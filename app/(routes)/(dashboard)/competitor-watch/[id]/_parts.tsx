@@ -35,6 +35,27 @@ export const PLATFORM_LABEL: Record<string, string> = {
   threads: "Threads",
 };
 
+/**
+ * Names the network a post comes from. The same publication syndicated on
+ * several channels otherwise reads as a duplicate in the flux.
+ */
+export function PlatformTag({ platform, className }: { platform: string; className?: string }) {
+  const Icon = ICON_MAP[platform] || FacebookIcon;
+  const label = PLATFORM_LABEL[platform] ?? platform;
+  return (
+    <span
+      title={`Publication ${label}`}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold leading-none text-slate-600",
+        className,
+      )}
+    >
+      <HugeiconsIcon icon={Icon} className="size-3 shrink-0" />
+      {label}
+    </span>
+  );
+}
+
 export const interactionsOf = (p: Pick<CompetitorPost, "likes" | "comments" | "shares">) =>
   p.likes + p.comments + p.shares;
 
@@ -461,7 +482,6 @@ export function FeaturedPost({
   onInspire: () => void;
 }) {
   const text = stripRichTextFormatting(post.content);
-  const Icon = ICON_MAP[post.platform] || FacebookIcon;
   return (
     <article className={cn(card, "kp-rise-in flex flex-col gap-5 p-4 sm:flex-row sm:items-center")}>
       <button
@@ -473,10 +493,10 @@ export function FeaturedPost({
         <PostImage src={post.mediaUrl} platform={post.platform} className="aspect-square w-full sm:w-36" />
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-          <HugeiconsIcon icon={Icon} className="size-3.5" />
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+          <PlatformTag platform={post.platform} />
           <time dateTime={post.publishedAt}>{postDate(post.publishedAt, true)}</time>
-          <span className="ml-1 font-semibold text-slate-900">{fr(interactionsOf(post))} interactions</span>
+          <span className="font-semibold text-slate-900">{fr(interactionsOf(post))} interactions</span>
         </div>
         <p className="line-clamp-2 text-[15px] font-medium leading-snug text-slate-900">
           {text || "Publication sans texte : ouvrez-la pour voir le visuel."}
@@ -518,7 +538,6 @@ export function PostCard({
   delay?: number;
 }) {
   const text = stripRichTextFormatting(post.content);
-  const Icon = ICON_MAP[post.platform] || FacebookIcon;
   return (
     <article
       className={cn(card, "kp-rise-in flex flex-col overflow-hidden transition-shadow duration-200 hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]")}
@@ -528,8 +547,8 @@ export function PostCard({
         {/* Always reserve the image area so every card in the grid has the same shape. */}
         <PostImage src={post.mediaUrl} platform={post.platform} className="aspect-[16/10] w-full" />
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <HugeiconsIcon icon={Icon} className="size-3.5" />
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+            <PlatformTag platform={post.platform} />
             <time dateTime={post.publishedAt}>{postDate(post.publishedAt)}</time>
           </div>
           <p className={cn("line-clamp-2 text-sm leading-relaxed text-slate-700")}>

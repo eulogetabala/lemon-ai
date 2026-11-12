@@ -1096,7 +1096,7 @@ export default function CompetitorDetailPage() {
                         {competitor.name}
                         <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
                           <HugeiconsIcon icon={PlatformIcon} className="size-3 text-slate-900" />
-                          {selectedPostDetail.platform}
+                          {PLATFORM_LABEL[selectedPostDetail.platform] ?? selectedPostDetail.platform}
                         </span>
                       </DialogTitle>
                       <DialogDescription className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
