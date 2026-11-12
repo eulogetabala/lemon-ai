@@ -484,12 +484,536 @@ export async function fetchPublicFollowerCount(
   handle: string | null,
   profileUrl: string | null,
 ): Promise<number | undefined> {
-  if (platform === "facebook") {
-    const slug = usernameFromHandle(handle) || usernameFromHandle(profileUrl)
-    if (!slug) return undefined
-    return fetchPublicFacebookInfo(slug)
+  const slug = usernameFromHandle(handle) || usernameFromHandle(profileUrl)
+  if (!slug) return undefined
+  if (platform === "facebook") return fetchPublicFacebookInfo(slug)
+  if (platform === "instagram") {
+    const page = await fetchPublicInstagramPage(slug)
+    return page.followers
+  }
+  if (platform === "linkedin") {
+    const page = await fetchPublicLinkedinCompany(slug)
+    return page.followers
   }
   return undefined
+}
+
+const IG_WEB_APP_ID = "936619743392459"
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+
+function parseCountLoose(raw: string): number | undefined {
+  const cleaned = raw
+    .replace(/\u202f|\u00a0|\s/g, "")
+    .replace(/,/g, "")
+    .replace(/\.(?=\d{3}\b)/g, "")
+  const match = cleaned.match(/^(\d+(?:\.\d+)?)([KkMmBb])?$/)
+  if (!match) {
+    const digits = Number(cleaned.replace(/[^\d]/g, ""))
+    return Number.isFinite(digits) && digits > 0 ? digits : undefined
+  }
+  const base = Number(match[1])
+  if (!Number.isFinite(base)) return undefined
+  const suffix = (match[2] || "").toLowerCase()
+  const mult = suffix === "k" ? 1_000 : suffix === "m" ? 1_000_000 : suffix === "b" ? 1_000_000_000 : 1
+  return Math.round(base * mult)
+}
+
+/** Public Instagram profile via HTML (crawler UA) then optional web_profile_info. */
+export async function fetchPublicInstagramPage(username: string): Promise<FetchedPage> {
+  if (!username) return { posts: [], note: "Identifiant Instagram manquant." }
+
+  // Prefer the Facebook crawler UA: logged-out Instagram pages expose og:meta + Relay media JSON.
+  try {
+    const res = await fetch(`https://www.instagram.com/${encodeURIComponent(username)}/`, {
+      headers: {
+        "User-Agent": FB_CRAWLER_UA,
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+    })
+    if (res.ok) {
+      const page = parseInstagramPublicHtml(await res.text(), username)
+      if (page.posts.length > 0 || page.followers) return page
+    }
+  } catch {
+    // try web API below
+  }
+
+  try {
+    const apiRes = await fetch(
+      `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
+      {
+        headers: {
+          "User-Agent": BROWSER_UA,
+          Accept: "application/json",
+          "X-IG-App-ID": IG_WEB_APP_ID,
+          "X-Requested-With": "XMLHttpRequest",
+          Referer: `https://www.instagram.com/${encodeURIComponent(username)}/`,
+        },
+        redirect: "follow",
+      },
+    )
+    if (apiRes.ok) {
+      const body = await apiRes.json().catch(() => null)
+      const user = body?.data?.user
+      if (user) {
+        const posts: FetchedPost[] = (user.edge_owner_to_timeline_media?.edges ?? [])
+          .map((edge: any) => edge?.node)
+          .filter(Boolean)
+          .map((node: any) => {
+            const caption =
+              node.edge_media_to_caption?.edges?.[0]?.node?.text ??
+              node.accessibility_caption ??
+              ""
+            const shortcode = node.shortcode ?? node.code ?? node.id
+            return {
+              providerPostId: String(node.id ?? shortcode),
+              content: caption,
+              mediaUrl:
+                node.is_video
+                  ? node.thumbnail_src ?? node.display_url ?? null
+                  : node.display_url ?? node.thumbnail_src ?? null,
+              postUrl: shortcode ? `https://www.instagram.com/p/${shortcode}/` : null,
+              publishedAt: node.taken_at_timestamp
+                ? unixToIso(node.taken_at_timestamp)
+                : new Date().toISOString(),
+              likes: node.edge_liked_by?.count ?? node.edge_media_preview_like?.count ?? 0,
+              comments: node.edge_media_to_comment?.count ?? 0,
+              shares: 0,
+              views: node.video_view_count ?? 0,
+              impressions: 0,
+            } satisfies FetchedPost
+          })
+        return {
+          followers: user.edge_followed_by?.count ?? user.follower_count,
+          profileImage: user.profile_pic_url_hd ?? user.profile_pic_url,
+          posts,
+          note:
+            posts.length > 0
+              ? "Profil Instagram lu via l’API web publique (publications récentes)."
+              : "Profil Instagram trouvé, aucune publication récente exposée publiquement.",
+        }
+      }
+    }
+  } catch {
+    // fall through
+  }
+
+  return {
+    posts: [],
+    note: `Aucune donnée publique exploitable pour @${username}.`,
+  }
+}
+
+const INSTAGRAM_ID_EPOCH_MS = BigInt("1314220021721")
+
+/**
+ * Instagram media ids embed their creation time: the bits above the low 23 are
+ * milliseconds since Instagram's epoch. Used when the payload has no taken_at.
+ */
+export function instagramMediaIdToIso(mediaId: string): string | null {
+  const raw = String(mediaId).split("_")[0]
+  if (!/^\d{15,}$/.test(raw)) return null
+  const ms = Number((BigInt(raw) >> BigInt(23)) + INSTAGRAM_ID_EPOCH_MS)
+  // Sanity window: after Instagram's launch, not in the future.
+  if (!Number.isFinite(ms) || ms < Date.UTC(2010, 0, 1) || ms > Date.now() + 86_400_000) return null
+  return new Date(ms).toISOString()
+}
+
+/** Extracts followers / recent posts from a public Instagram profile HTML page. */
+export function parseInstagramPublicHtml(html: string, username: string): FetchedPage {
+  let followers: number | undefined
+  const ogDesc =
+    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)?.[1] ??
+    ""
+  const desc = decodeHtmlEntities(ogDesc)
+  const followerMatch = desc.match(
+    /([0-9][0-9\s.,\u202f]*[KkMmBb]?)\s*(?:Followers|abonnés|followers)/i,
+  )
+  if (followerMatch?.[1]) followers = parseCountLoose(followerMatch[1])
+
+  for (const pattern of [
+    /"follower_count"\s*:\s*(\d+)/i,
+    /"edge_followed_by"\s*:\s*\{\s*"count"\s*:\s*(\d+)/i,
+  ]) {
+    const m = html.match(pattern)
+    if (m?.[1]) {
+      const n = Number(m[1])
+      if (Number.isFinite(n) && n > 0) {
+        followers = n
+        break
+      }
+    }
+  }
+
+  const profileImage =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1]
+
+  const posts: FetchedPost[] = []
+  const seen = new Set<string>()
+
+  // Current Instagram SSR embeds media nodes inside Relay JSON scripts.
+  const scriptRe = /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi
+  let scriptMatch: RegExpExecArray | null
+  while ((scriptMatch = scriptRe.exec(html)) !== null) {
+    const body = scriptMatch[1]
+    if (!body.includes("__isXIGPolarisMedia") && !body.includes("seo_canonical_url") && !body.includes("image_versions2")) {
+      continue
+    }
+    let data: unknown
+    try {
+      data = JSON.parse(body)
+    } catch {
+      continue
+    }
+    walkJson(data, (node) => {
+      const isMedia =
+        node.__isXIGPolarisMedia === true ||
+        (typeof node.pk === "string" &&
+          /^\d{10,}$/.test(node.pk) &&
+          (node.image_versions2 || node.seo_canonical_url || node.caption))
+      if (!isMedia) return
+
+      const mediaId = String(node.id ?? node.pk ?? "").replace(/^POLARIS_/, "")
+      if (!mediaId || seen.has(mediaId)) return
+      // Skip tiny unrelated pk values (user ids, etc.)
+      if (!/^\d{10,}$/.test(mediaId) && !String(node.id || "").startsWith("POLARIS_")) return
+
+      const captionText =
+        typeof node.caption?.text === "string"
+          ? decodeJsonString(node.caption.text)
+          : typeof node.caption === "string"
+            ? node.caption
+            : ""
+      const candidates: string[] = []
+      const versions = node.image_versions2?.candidates
+      if (Array.isArray(versions)) {
+        for (const c of versions) if (typeof c?.url === "string") candidates.push(c.url)
+      }
+      if (typeof node.thumbnail_url === "string") candidates.push(node.thumbnail_url)
+      if (typeof node.display_uri === "string") candidates.push(node.display_uri)
+
+      const canonical =
+        typeof node.seo_canonical_url === "string"
+          ? node.seo_canonical_url
+          : typeof node.code === "string" && node.code.length > 5
+            ? `https://www.instagram.com/p/${node.code}/`
+            : `https://www.instagram.com/${username}/`
+
+      seen.add(mediaId)
+      posts.push({
+        providerPostId: mediaId,
+        content: captionText,
+        mediaUrl: candidates[0] ?? null,
+        postUrl: canonical,
+        publishedAt: node.taken_at
+          ? unixToIso(Number(node.taken_at))
+          : node.taken_at_timestamp
+            ? unixToIso(Number(node.taken_at_timestamp))
+            : instagramMediaIdToIso(mediaId) ?? new Date().toISOString(),
+        likes: Number(node.like_count ?? node.likes ?? 0) || 0,
+        comments: Number(node.comment_count ?? node.comments ?? 0) || 0,
+        shares: 0,
+        views: Number(node.view_count ?? node.play_count ?? 0) || 0,
+        impressions: 0,
+      })
+    })
+  }
+
+  // Legacy shortcode fallback if Relay nodes were absent.
+  if (posts.length === 0) {
+    const shortcodeRe = /"shortcode"\s*:\s*"([A-Za-z0-9_-]+)"/g
+    let match: RegExpExecArray | null
+    while ((match = shortcodeRe.exec(html)) !== null && posts.length < 24) {
+      const code = match[1]
+      if (seen.has(code)) continue
+      seen.add(code)
+      posts.push({
+        providerPostId: code,
+        content: "",
+        mediaUrl: null,
+        postUrl: `https://www.instagram.com/p/${code}/`,
+        publishedAt: new Date().toISOString(),
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        views: 0,
+        impressions: 0,
+      })
+    }
+  }
+
+  return {
+    followers,
+    profileImage: profileImage || undefined,
+    posts: posts.slice(0, 50),
+    note:
+      posts.length > 0 || followers
+        ? "Données Instagram publiques — publications limitées aux plus récentes."
+        : `Aucune donnée publique exploitable pour @${username}.`,
+  }
+}
+
+function toLinkedInOrganizationUrn(id: string): string {
+  const value = String(id || "").trim()
+  if (!value) return ""
+  if (value.startsWith("urn:li:organization:")) return value
+  if (value.startsWith("urn:li:")) return value
+  return `urn:li:organization:${value}`
+}
+
+function parseLinkedInFollowerElements(elements: any[]): number {
+  let max = 0
+  for (const el of elements ?? []) {
+    const fc = el?.followerCounts
+    if (fc && typeof fc === "object" && !Array.isArray(fc)) {
+      const organic = Number(fc.organicFollowerCount ?? 0)
+      const paid = Number(fc.paidFollowerCount ?? 0)
+      const total = Number(fc.totalFollowerCount ?? organic + paid)
+      if (Number.isFinite(total) && total > max) max = total
+    }
+    for (const bag of [el?.followerCountsByRegion, el?.followerCountsByCountry, el?.followerCountsByStaffCountRange]) {
+      if (!Array.isArray(bag)) continue
+      for (const row of bag) {
+        const counts = row?.followerCounts
+        if (counts && typeof counts === "object" && !Array.isArray(counts)) {
+          const organic = Number(counts.organicFollowerCount ?? 0)
+          const paid = Number(counts.paidFollowerCount ?? 0)
+          const total = organic + paid
+          if (total > max) max = total
+        } else if (Array.isArray(counts)) {
+          for (const c of counts) {
+            const n = Number(c?.count ?? 0)
+            if (n > max) max = n
+          }
+        }
+      }
+    }
+  }
+  return max
+}
+
+/** Public LinkedIn company page scrape (followers + recent activity when exposed). */
+export async function fetchPublicLinkedinCompany(slug: string): Promise<FetchedPage> {
+  if (!slug) return { posts: [], note: "Identifiant de page LinkedIn manquant." }
+
+  // LinkedIn blocks generic browser UAs from many server IPs (403 Cloudflare).
+  // The Facebook crawler UA reliably returns the public company page HTML.
+  const userAgents = [FB_CRAWLER_UA, BROWSER_UA]
+  let lastStatus = 0
+  for (const ua of userAgents) {
+    try {
+      const res = await fetch(`https://www.linkedin.com/company/${encodeURIComponent(slug)}/`, {
+        headers: {
+          "User-Agent": ua,
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        },
+        redirect: "follow",
+      })
+      lastStatus = res.status
+      if (!res.ok) continue
+      const page = parseLinkedinCompanyHtml(await res.text(), slug)
+      if (page.posts.length > 0 || page.followers) return page
+    } catch {
+      // try next UA
+    }
+  }
+
+  return {
+    posts: [],
+    note: `Page LinkedIn « ${slug} » inaccessible publiquement${lastStatus ? ` (${lastStatus})` : ""}.`,
+  }
+}
+
+/** Extracts followers / posts from a public LinkedIn company HTML page. */
+export function parseLinkedinCompanyHtml(html: string, slug: string): FetchedPage {
+  let followers: number | undefined
+  const ogDesc =
+    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)?.[1] ??
+    ""
+  const desc = decodeHtmlEntities(ogDesc)
+  const followerMatch =
+    desc.match(/([0-9][0-9\s.,\u202f]*[KkMmBb]?)\s*(?:followers|abonnés|followers on LinkedIn)/i) ||
+    html.match(/([0-9][0-9\s.,\u202f]*[KkMmBb]?)\s*(?:followers|abonnés)/i)
+  if (followerMatch?.[1]) followers = parseCountLoose(followerMatch[1])
+
+  const followerCountMatch = html.match(/"followerCount"\s*:\s*(\d+)/i)
+  if (followerCountMatch?.[1]) {
+    const n = Number(followerCountMatch[1])
+    if (Number.isFinite(n) && n > 0) followers = n
+  }
+
+  const profileImage =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1]
+
+  const posts: FetchedPost[] = []
+  const seen = new Set<string>()
+
+  // Current public markup: one <article data-activity-urn="urn:li:activity:…"> per update,
+  // with the text in [data-test-id="main-feed-activity-card__commentary"], the age in a
+  // <time> element and the engagement as "1 764 réactions" / "164 commentaires" labels.
+  const cards = [...html.matchAll(/<article[^>]*data-activity-urn="urn:li:activity:(\d+)"/g)]
+  for (const card of cards) {
+    if (posts.length >= 20) break
+    const id = card[1]
+    if (seen.has(id)) continue
+    seen.add(id)
+    const start = card.index ?? 0
+    const articleEnd = html.indexOf("</article>", start)
+    const segment = html.slice(start, articleEnd > start ? articleEnd : Math.min(html.length, start + 30000))
+
+    const content = decodeHtmlEntities(
+      stripLinkedinMarkup(
+        segment.match(/data-test-id="main-feed-activity-card__commentary"[^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? "",
+      ),
+    )
+    // i18n templates ("%numReactions% Reactions") would otherwise be read as real counts.
+    const countable = segment.replace(/<code[\s\S]*?<\/code>/gi, " ").replace(/<!--[\s\S]*?-->/g, " ")
+    const stat = (re: RegExp) => parseCountLoose(countable.match(re)?.[1] ?? "") ?? 0
+    const mediaUrl =
+      [...segment.matchAll(/data-delayed-url="(https:\/\/media\.licdn\.com\/[^"]+)"/gi)]
+        .map((m) => decodeHtmlEntities(m[1]))
+        .find((url) => !/company-logo|\/profile-displ|aero-v1|\/embeds\//.test(url)) ?? null
+    // The permalink sits before the <article> and may belong to a neighbouring card, so only
+    // accept a link pointing at this card's own activity id.
+    const permalink = html
+      .slice(Math.max(0, start - 4000), start + segment.length)
+      .match(new RegExp(`href="(https://www\\.linkedin\\.com/(?:posts|pulse)/[^"]*activity-${id}[^"]*)"`, "i"))?.[1]
+
+    posts.push({
+      providerPostId: `li-activity-${id}`,
+      content,
+      mediaUrl,
+      postUrl:
+        decodeHtmlEntities(permalink ?? "") || `https://www.linkedin.com/feed/update/urn:li:activity:${id}`,
+      publishedAt: linkedinActivityDate(id) ?? linkedinPostDate(segment) ?? new Date().toISOString(),
+      likes: stat(/\b([\d][\d.,\u202f\s]*)\s*(?:reactions?|réactions?)\b/i),
+      comments: stat(/\b([\d][\d.,\u202f\s]*)\s*(?:comments?|commentaires?)\b/i),
+      shares: stat(/\b([\d][\d.,\u202f\s]*)\s*(?:reposts?|republications?)\b/i),
+      views: 0,
+      impressions: 0,
+    })
+  }
+
+  // Older markup only embeds activity URNs (sometimes with a JSON payload): keep it as a fallback.
+  // Share and ugcPost URNs are ignored: they designate the same update as its activity URN with a
+  // slightly different id, which used to create duplicate rows the next sync never overwrote.
+  if (posts.length === 0) {
+    const activityRe = /urn:li:activity:(\d+)/g
+    let act: RegExpExecArray | null
+    while ((act = activityRe.exec(html)) !== null && posts.length < 20) {
+      const id = act[1]
+      if (seen.has(id)) continue
+      seen.add(id)
+      const around = html.slice(Math.max(0, act.index - 500), act.index + 800)
+      const text =
+        around.match(/"commentary"\s*:\s*\{[^}]*"text"\s*:\s*"((?:\\.|[^"\\])*)"/)?.[1] ??
+        around.match(/"text"\s*:\s*"((?:\\.|[^"\\]){20,400})"/)?.[1] ??
+        ""
+      const content = decodeJsonString(text)
+      const likes = Number(around.match(/"numLikes"\s*:\s*(\d+)/)?.[1] ?? 0)
+      const comments = Number(around.match(/"numComments"\s*:\s*(\d+)/)?.[1] ?? 0)
+      const shares = Number(around.match(/"numShares"\s*:\s*(\d+)/)?.[1] ?? 0)
+      // Nothing to show (no text, no engagement): the old code stored a blank placeholder row.
+      if (!content && likes + comments + shares === 0) continue
+      posts.push({
+        providerPostId: `li-activity-${id}`,
+        content,
+        mediaUrl: null,
+        postUrl: `https://www.linkedin.com/feed/update/urn:li:activity:${id}`,
+        publishedAt: linkedinActivityDate(id) ?? new Date().toISOString(),
+        likes,
+        comments,
+        shares,
+        views: 0,
+        impressions: 0,
+      })
+    }
+  }
+
+  return {
+    followers,
+    profileImage: profileImage || undefined,
+    posts,
+    note:
+      posts.length > 0 || followers
+        ? "Données LinkedIn publiques — l’API officielle ne couvre pas les pages concurrentes."
+        : `Aucune donnée publique exploitable pour la page LinkedIn « ${slug} ».`,
+  }
+}
+
+/**
+ * LinkedIn activity ids are snowflakes: the creation time in ms is the id shifted right by 22 bits.
+ * The shift runs on BigInt because these ids exceed Number.MAX_SAFE_INTEGER.
+ */
+function linkedinActivityDate(id: string): string | null {
+  if (!/^\d+$/.test(id)) return null
+  const ms = Number(BigInt(id) / BigInt(2 ** 22))
+  if (!Number.isFinite(ms) || ms < Date.UTC(2010, 0, 1) || ms > Date.now() + 86_400_000) return null
+  return new Date(ms).toISOString()
+}
+
+/** Post commentary HTML → plain text (links keep their label, line breaks are preserved). */
+function stripLinkedinMarkup(value: string): string {
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|div|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/[ \t\u202f\u00a0]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
+/** LinkedIn only exposes a relative age ("1d", "3 sem."): convert it to an absolute date. */
+function linkedinPostDate(segment: string): string | null {
+  const raw = segment.match(/<time[^>]*>([\s\S]*?)<\/time>/i)?.[1] ?? ""
+  const text = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+  const rel = text.match(/(\d+)\s*(min|sem|mois|ans?|mo|m|h|d|j|w|y)\b/i)
+  if (!rel) return null
+  const amount = Number(rel[1])
+  if (!Number.isFinite(amount) || amount <= 0) return null
+  const unit = rel[2].toLowerCase()
+  const minutes =
+    unit === "min" || unit === "m"
+      ? amount
+      : unit === "h"
+        ? amount * 60
+        : unit === "d" || unit === "j"
+          ? amount * 1440
+          : unit === "w" || unit === "sem"
+            ? amount * 10080
+            : unit === "mo" || unit === "mois"
+              ? amount * 43200
+              : amount * 525600
+  return new Date(Date.now() - minutes * 60_000).toISOString()
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;|&#xA0;|&#160;|&#x202f;|&#8239;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+}
+
+function decodeJsonString(value: string): string {
+  if (!value) return ""
+  try {
+    return JSON.parse(`"${value}"`)
+  } catch {
+    return value.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\u([0-9a-fA-F]{4})/g, (_, h) =>
+      String.fromCharCode(parseInt(h, 16)),
+    )
+  }
 }
 
 async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
@@ -592,13 +1116,32 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
 }
 
 async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
-  const username = usernameFromHandle(row.handle)
+  const username = usernameFromHandle(row.handle) || usernameFromHandle(row.profile_url)
   if (!username) return { posts: [], note: "Identifiant Instagram manquant." }
-  if (!cred?.token) {
+
+  const publicFallback = async (apiNote?: string): Promise<FetchedPage> => {
+    const pub = await fetchPublicInstagramPage(username)
+    if (pub.posts.length > 0 || pub.followers) {
+      return {
+        ...pub,
+        note: apiNote
+          ? `${apiNote} — ${pub.note ?? "données publiques utilisées."}`
+          : pub.note,
+      }
+    }
     return {
       posts: [],
-      note: "Connectez votre compte Facebook (avec un compte Instagram Business lié) pour activer Business Discovery.",
+      note:
+        apiNote ||
+        pub.note ||
+        "Aucune donnée Instagram récupérée. Connectez Facebook avec un Instagram Business lié, ou vérifiez le @ concurrent.",
     }
+  }
+
+  if (!cred?.token) {
+    return publicFallback(
+      "Pas de token Meta — lecture du profil Instagram public.",
+    )
   }
 
   // Business Discovery must be called AS an Instagram Business account. Connected
@@ -615,34 +1158,34 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
     const account = await resolveInstagramBusinessAccount(token, resolveErrors)
     if (!account) continue
     foundBusinessAccount = true
+    const authToken = account.token || token
     try {
       discovery = await fetchJson(
         `https://${account.host}/${account.id}?fields=${encodeURIComponent(fields)}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${authToken}` } },
       )
-      break
+      if (discovery?.business_discovery) break
+      lastError = "réponse sans business_discovery"
+      discovery = null
     } catch (err) {
       lastError = (err as Error).message
     }
   }
+
   if (!foundBusinessAccount) {
-    return {
-      posts: [],
-      note: `Aucun compte Instagram Business/Créateur utilisable parmi vos comptes connectés. Reconnectez Instagram.${
+    return publicFallback(
+      `Aucun compte Instagram Business/Créateur utilisable parmi vos comptes connectés.${
         resolveErrors.length ? ` Détail Meta : ${[...new Set(resolveErrors)].slice(0, 3).join(" | ")}` : ""
       }`,
-    }
+    )
   }
-  if (!discovery) {
-    // Typical: the competitor account is personal (not Business/Creator) or the username is wrong.
-    return {
-      posts: [],
-      note: `Profil Instagram « ${username} » illisible via Business Discovery (${lastError}). Le compte doit être professionnel (Business ou Créateur).`,
-    }
+  if (!discovery?.business_discovery) {
+    return publicFallback(
+      `Business Discovery indisponible pour « ${username} » (${lastError || "compte non pro / scopes Meta manquants"})`,
+    )
   }
-  const bd = discovery?.business_discovery
-  if (!bd) return { posts: [], note: "Profil Instagram introuvable via Business Discovery." }
 
+  const bd = discovery.business_discovery
   const posts: FetchedPost[] = (bd.media?.data ?? []).map((m: any) => ({
     providerPostId: m.id,
     content: m.caption ?? "",
@@ -658,6 +1201,10 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
     impressions: 0,
   }))
 
+  if (posts.length === 0 && !bd.followers_count) {
+    return publicFallback("Business Discovery a renvoyé un profil vide")
+  }
+
   return { followers: bd.followers_count, profileImage: bd.profile_picture_url, posts }
 }
 
@@ -665,10 +1212,10 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
 async function resolveInstagramBusinessAccount(
   token: string,
   errors: string[] = [],
-): Promise<{ id: string; host: string } | null> {
-  const get = async (url: string) => {
+): Promise<{ id: string; host: string; token?: string } | null> {
+  const get = async (url: string, authToken = token) => {
     try {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } })
       const body = await r.json().catch(() => null)
       if (r.ok) return body
       const host = new URL(url).host
@@ -681,16 +1228,31 @@ async function resolveInstagramBusinessAccount(
   }
   const fb = "graph.facebook.com/v19.0"
   // Facebook Page token: /me is the Page.
-  const page = await get(`https://${fb}/me?fields=instagram_business_account`)
-  if (page?.instagram_business_account?.id) return { id: page.instagram_business_account.id, host: fb }
-  // Facebook user token: look through the Pages they manage.
-  const accounts = await get(`https://${fb}/me/accounts?fields=instagram_business_account&limit=100`)
-  const linked = accounts?.data?.find((p: any) => p?.instagram_business_account?.id)?.instagram_business_account?.id
-  if (linked) return { id: linked, host: fb }
+  const page = await get(`https://${fb}/me?fields=instagram_business_account,access_token`)
+  if (page?.instagram_business_account?.id) {
+    return {
+      id: page.instagram_business_account.id,
+      host: fb,
+      token: page.access_token || token,
+    }
+  }
+  // Facebook user token: look through the Pages they manage — prefer the Page access token.
+  const accounts = await get(
+    `https://${fb}/me/accounts?fields=id,name,access_token,instagram_business_account&limit=100`,
+  )
+  const linkedPage = accounts?.data?.find((p: any) => p?.instagram_business_account?.id)
+  if (linkedPage?.instagram_business_account?.id) {
+    return {
+      id: linkedPage.instagram_business_account.id,
+      host: fb,
+      token: linkedPage.access_token || token,
+    }
+  }
   // Instagram Login token: /me is the Instagram professional account itself.
+  // Business Discovery of OTHER accounts often fails on graph.instagram.com — still try.
   const ig = "graph.instagram.com/v21.0"
   const me = await get(`https://${ig}/me?fields=user_id,account_type`)
-  if (me?.user_id || me?.id) return { id: String(me.user_id ?? me.id), host: ig }
+  if (me?.user_id || me?.id) return { id: String(me.user_id ?? me.id), host: ig, token }
   return null
 }
 
@@ -698,6 +1260,7 @@ async function fetchLinkedinPage(row: CompetitorPlatformRow, cred: Credential): 
   const slug = usernameFromHandle(row.handle) || usernameFromHandle(row.profile_url)
   if (!slug) return { posts: [], note: "Identifiant de page LinkedIn manquant." }
 
+  let apiNote = ""
   if (cred?.token) {
     try {
       const auth = {
@@ -713,53 +1276,83 @@ async function fetchLinkedinPage(row: CompetitorPlatformRow, cred: Credential): 
         `https://api.linkedin.com/v2/organizations?q=vanityName&vanityName=${encodeURIComponent(slug)}`,
         auth,
       )
-      const orgUrn = org?.elements?.[0]?.id
+      const rawId = org?.elements?.[0]?.id
+      const orgUrn = toLinkedInOrganizationUrn(String(rawId ?? ""))
       if (orgUrn) {
-        // 2. Follower statistics (sum across regions/countries).
-        const followersData = await fetchJson(
-          `https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=${orgUrn}`,
-          auth,
-        )
-        const followers = (followersData?.elements ?? []).reduce((sum: number, e: any) => {
-          const regions = e.followerCountsByRegion ?? e.followerCountsByCountry ?? []
-          return sum + regions.reduce((s: number, r: any) => s + (r.followerCounts?.[0]?.count ?? 0), 0)
-        }, 0)
+        const encodedUrn = encodeURIComponent(orgUrn)
 
-        // 3. Posts published by the organization.
-        const postsData = await fetchJson(
-          `https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${orgUrn})&count=50`,
-          auth,
-        )
-        const posts: FetchedPost[] = (postsData?.elements ?? []).map((p: any) => {
-          const share = p.specificContent?.["com.linkedin.ugc.ShareContent"]
-          const media = share?.media?.[0]
-          const id = p.id ?? ""
-          return {
-            providerPostId: id,
-            content: share?.shareCommentary?.text ?? "",
-            mediaUrl: media?.originalUrl ?? null,
-            postUrl: p.permalinkUrl ?? `https://www.linkedin.com/feed/update/${id}`,
-            publishedAt: p.created?.time ? new Date(p.created.time).toISOString() : new Date().toISOString(),
-            likes: 0,
-            comments: 0,
-            shares: 0,
-            views: 0,
-            impressions: 0,
-          }
-        })
+        // 2. Follower statistics (owned pages only — competitor orgs usually 403).
+        let followers = 0
+        try {
+          const followersData = await fetchJson(
+            `https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=${encodedUrn}`,
+            auth,
+          )
+          followers = parseLinkedInFollowerElements(followersData?.elements ?? [])
+        } catch (err) {
+          apiNote = (err as Error).message
+        }
 
-        if (posts.length > 0 || (followers && followers > 0)) {
+        // 3. Posts published by the organization (owned pages).
+        let posts: FetchedPost[] = []
+        try {
+          const postsData = await fetchJson(
+            `https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodedUrn})&count=50&sortBy=LAST_MODIFIED`,
+            auth,
+          )
+          posts = (postsData?.elements ?? []).map((p: any) => {
+            const share = p.specificContent?.["com.linkedin.ugc.ShareContent"]
+            const media = share?.media?.[0]
+            const id = String(p.id ?? "")
+            return {
+              providerPostId: id,
+              content: share?.shareCommentary?.text ?? "",
+              mediaUrl: media?.originalUrl ?? null,
+              postUrl: p.permalinkUrl ?? `https://www.linkedin.com/feed/update/${id}`,
+              publishedAt: p.created?.time
+                ? new Date(p.created.time).toISOString()
+                : new Date().toISOString(),
+              likes: 0,
+              comments: 0,
+              shares: 0,
+              views: 0,
+              impressions: 0,
+            } satisfies FetchedPost
+          })
+        } catch (err) {
+          apiNote = apiNote || (err as Error).message
+        }
+
+        if (posts.length > 0 || followers > 0) {
           return { followers: followers || undefined, posts }
         }
+      } else {
+        apiNote = "organisation LinkedIn introuvable via vanityName"
       }
-    } catch {
-      // Competitor page access not available on private token; fall back to public data
+    } catch (err) {
+      apiNote = (err as Error).message
+    }
+  } else {
+    apiNote = "Aucun compte LinkedIn connecté"
+  }
+
+  // Official Marketing API only covers pages you administer. For competitors,
+  // fall back to the public company page (followers + activity when exposed).
+  const pub = await fetchPublicLinkedinCompany(slug)
+  if (pub.posts.length > 0 || pub.followers) {
+    return {
+      ...pub,
+      note: apiNote
+        ? `API LinkedIn limitée (${apiNote}) — ${pub.note}`
+        : pub.note,
     }
   }
 
   return {
     posts: [],
-    note: "LinkedIn ne donne pas accès aux publications ni aux abonnés des pages d'autres entreprises. Seules vos propres pages peuvent être lues.",
+    note: apiNote
+      ? `LinkedIn : aucune donnée API ni publique (${apiNote}). Vérifiez le slug /company/… et reconnectez LinkedIn avec r_organization_social si c’est votre propre page.`
+      : "LinkedIn : aucune donnée récupérée pour cette page concurrente.",
   }
 }
 
@@ -937,7 +1530,7 @@ export async function syncCompetitorPlatform(
   // Images already copied to our storage are reused instead of re-downloaded.
   const { data: storedPosts } = await supabase
     .from("competitor_posts")
-    .select("provider_post_id, media_url")
+    .select("id, provider_post_id, content, media_url")
     .eq("platform_id", row.id)
   const storedMedia = new Map<string, string>(
     (storedPosts ?? [])
@@ -989,6 +1582,21 @@ export async function syncCompetitorPlatform(
     if (error) {
       console.error("[competitor_posts upsert error]", error.message)
     }
+  }
+
+  // The former LinkedIn parser stored a blank "Publication LinkedIn" row per update, keyed on the
+  // share URN while the current one keys on the activity URN: those rows are never overwritten and
+  // are displayed as empty posts. Drop the ones the fresh sync does not know about.
+  const freshPostIds = new Set(page.posts.map((post) => post.providerPostId))
+  const stalePlaceholderIds = (storedPosts ?? [])
+    .filter((p: any) => String(p.content ?? "") === "Publication LinkedIn" && !freshPostIds.has(String(p.provider_post_id)))
+    .map((p: any) => p.id)
+  if (page.posts.length > 0 && stalePlaceholderIds.length > 0) {
+    const { error: cleanupError } = await supabase
+      .from("competitor_posts")
+      .delete()
+      .in("id", stalePlaceholderIds)
+    if (cleanupError) console.error("[competitor_posts cleanup error]", cleanupError.message)
   }
 
   const followersCount = typeof page.followers === "number" ? page.followers : undefined
