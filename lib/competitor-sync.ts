@@ -1129,6 +1129,35 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
 const IG_DISCOVERY_REQUIREMENT =
   "Meta ne fournit les statistiques Instagram qu'à un compte Business/Créateur relié à une Page Facebook : reconnectez Facebook en cochant cette Page (droits instagram_basic, instagram_manage_insights, pages_read_engagement, business_management), puis resynchronisez."
 
+/** Facebook Login scopes Business Discovery cannot work without. */
+const IG_REQUIRED_SCOPES = [
+  "instagram_basic",
+  "instagram_manage_insights",
+  "pages_read_engagement",
+] as const
+
+/**
+ * Which of {@link IG_REQUIRED_SCOPES} the token never received. A token can be
+ * perfectly valid yet lack one scope, and Meta then answers with the unhelpful
+ * "(#10) Application does not have permission for this action" — so name them.
+ */
+async function missingMetaScopes(token: string): Promise<string[]> {
+  const appId = process.env.FACEBOOK_CLIENT_ID
+  const appSecret = process.env.FACEBOOK_CLIENT_SECRET
+  if (!token || !appId || !appSecret) return []
+  try {
+    const r = await fetch(
+      `https://graph.facebook.com/v19.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${appId}|${appSecret}`,
+    )
+    const body = await r.json().catch(() => null)
+    const granted: unknown = body?.data?.scopes
+    if (!Array.isArray(granted) || granted.length === 0) return []
+    return IG_REQUIRED_SCOPES.filter((scope) => !granted.includes(scope))
+  } catch {
+    return []
+  }
+}
+
 async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
   const username = usernameFromHandle(row.handle) || usernameFromHandle(row.profile_url)
   if (!username) return { posts: [], note: "Identifiant Instagram manquant." }
@@ -1186,12 +1215,27 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
     }
   }
 
+  // Only probe the token when discovery actually failed: the answer is what turns
+  // a cryptic "(#10)" into an actionable list of scopes to enable in Meta.
+  let scopeHint: Promise<string> | null = null
+  const describeMissingScopes = () => {
+    scopeHint ??= missingMetaScopes(tokens[0]).then((missing) =>
+      missing.length
+        ? ` Autorisations absentes du token Meta : ${missing.join(", ")} — activez-les sur l'app Meta, puis reconnectez Facebook et resynchronisez.`
+        : "",
+    )
+    return scopeHint
+  }
+
   if (!foundBusinessAccount) {
     console.warn("[instagram] aucun compte compatible Business Discovery", [...new Set(resolveErrors)].slice(0, 3))
-    return publicFallback(IG_DISCOVERY_REQUIREMENT)
+    return publicFallback(`${IG_DISCOVERY_REQUIREMENT}${await describeMissingScopes()}`)
   }
   if (!discovery?.business_discovery) {
-    return publicFallback(`Business Discovery indisponible pour « ${username} » (${lastError || "compte non professionnel"}). ${IG_DISCOVERY_REQUIREMENT}`)
+    const hint = await describeMissingScopes()
+    return publicFallback(
+      `Business Discovery indisponible pour « ${username} » (${lastError || "compte non professionnel"}).${hint} ${IG_DISCOVERY_REQUIREMENT}`,
+    )
   }
 
   const bd = discovery.business_discovery
