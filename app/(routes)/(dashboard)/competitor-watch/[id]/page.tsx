@@ -302,7 +302,12 @@ export default function CompetitorDetailPage() {
     })[0]?.platform;
   }, [platforms, posts, allPosts]);
 
-  const platformOverride = platformChoice && platformChoice.id === id ? platformChoice.platform : null;
+  // A manual choice only counts while that channel still exists for this
+  // competitor, so the tab strip always has exactly one active tab.
+  const platformOverride =
+    platformChoice && platformChoice.id === id && platforms.some((p) => p.platform === platformChoice.platform)
+      ? platformChoice.platform
+      : null;
   const selectedPlatform = platformOverride ?? defaultPlatform ?? "all";
 
   const currentPlatforms = useMemo(() => {
