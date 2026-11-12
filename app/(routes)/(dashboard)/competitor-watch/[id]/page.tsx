@@ -217,6 +217,14 @@ function MiniCalendar({
   );
 }
 
+/** Used as a tie-break when several channels have the same number of posts. */
+const DEFAULT_CHANNEL_ORDER = ["instagram", "linkedin", "facebook", "tiktok", "youtube", "twitter", "threads"];
+
+const channelRank = (platform: string) => {
+  const index = DEFAULT_CHANNEL_ORDER.indexOf(platform);
+  return index === -1 ? DEFAULT_CHANNEL_ORDER.length : index;
+};
+
 export default function CompetitorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -224,7 +232,7 @@ export default function CompetitorDetailPage() {
   const [detail, setDetail] = useState<CompetitorDetail | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const [platformChoice, setPlatformChoice] = useState<{ id: string; platform: string } | null>(null);
   const [viewFilter, setViewFilter] = useState<"all" | "month">("month");
   const [sortBy, setSortBy] = useState<"recent" | "engaging">("recent");
   const [currentPage, setCurrentPage] = useState(1);
@@ -271,6 +279,31 @@ export default function CompetitorDetailPage() {
   const posts = detail?.posts || [];
   const currentMonth = selectedMonth ?? detail?.month ?? "";
   const platforms = detail?.competitor?.platforms || [];
+
+  // Land on a single channel: the same publication cross-posted on several
+  // networks would otherwise appear several times in the flux. The user can
+  // still switch to another channel or to "Tous" from the tabs.
+  const defaultPlatform = useMemo(() => {
+    const countByChannel = (list: CompetitorPost[]) => {
+      const counts = new Map<string, number>();
+      for (const post of list) counts.set(post.platform, (counts.get(post.platform) ?? 0) + 1);
+      return counts;
+    };
+    // Prefer a channel that actually published on the month being viewed, so the
+    // landing view is never empty when another channel has posts.
+    const monthCounts = countByChannel(posts);
+    const allCounts = countByChannel(allPosts);
+    return [...platforms].sort((a, b) => {
+      const monthDelta = (monthCounts.get(b.platform) ?? 0) - (monthCounts.get(a.platform) ?? 0);
+      if (monthDelta !== 0) return monthDelta;
+      const allDelta = (allCounts.get(b.platform) ?? 0) - (allCounts.get(a.platform) ?? 0);
+      if (allDelta !== 0) return allDelta;
+      return channelRank(a.platform) - channelRank(b.platform);
+    })[0]?.platform;
+  }, [platforms, posts, allPosts]);
+
+  const platformOverride = platformChoice && platformChoice.id === id ? platformChoice.platform : null;
+  const selectedPlatform = platformOverride ?? defaultPlatform ?? "all";
 
   const currentPlatforms = useMemo(() => {
     if (selectedPlatform === "all") return platforms;
@@ -691,7 +724,7 @@ export default function CompetitorDetailPage() {
           ]}
           selected={selectedPlatform}
           onSelect={(key) => {
-            setSelectedPlatform(key);
+            setPlatformChoice({ id, platform: key });
             setSelectedDay(null);
           }}
         />
