@@ -60,6 +60,11 @@ export interface CompetitorPost {
   shares: number
   views: number
   engagementRate: number
+  /**
+   * False when the network does not expose engagement for this post (public
+   * Instagram page): `likes`/`comments`/`shares` are then 0 because unknown.
+   */
+  engagementAvailable?: boolean
 }
 
 export interface CompetitorTotals {

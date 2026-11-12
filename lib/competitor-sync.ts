@@ -876,10 +876,15 @@ export function parseLinkedinCompanyHtml(html: string, slug: string): FetchedPag
     // i18n templates ("%numReactions% Reactions") would otherwise be read as real counts.
     const countable = segment.replace(/<code[\s\S]*?<\/code>/gi, " ").replace(/<!--[\s\S]*?-->/g, " ")
     const stat = (re: RegExp) => parseCountLoose(countable.match(re)?.[1] ?? "") ?? 0
+    // Video posts have no <img>: the still frame is exposed as data-poster-url on the <video>.
+    const posterUrl =
+      [...segment.matchAll(/data-poster-url="([^"]+)"/gi)]
+        .map((m) => decodeHtmlEntities(m[1]))
+        .find((url) => /^https:\/\/media\.licdn\.com\//.test(url)) ?? null
     const mediaUrl =
       [...segment.matchAll(/data-delayed-url="(https:\/\/media\.licdn\.com\/[^"]+)"/gi)]
         .map((m) => decodeHtmlEntities(m[1]))
-        .find((url) => !/company-logo|\/profile-displ|aero-v1|\/embeds\//.test(url)) ?? null
+        .find((url) => !/company-logo|\/profile-displ|aero-v1|\/embeds\//.test(url)) ?? posterUrl
     // The permalink sits before the <article> and may belong to a neighbouring card, so only
     // accept a link pointing at this card's own activity id.
     const permalink = html

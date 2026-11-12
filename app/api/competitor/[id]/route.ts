@@ -220,6 +220,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const mapPost = (p: any): CompetitorPost => {
       const platformRow = platformById.get(p.platform_id)
       const platformName = platformRow?.platform ?? p.platform
+      // Instagram only reports engagement through business_discovery. When that
+      // is unavailable (see last_error) the scraped HTML carries no counts, so
+      // the stored 0 means "unknown" rather than "nobody reacted".
+      const engagementAvailable = platformName !== "instagram" || !platformRow?.last_error
       let postUrl = p.post_url
       if (!postUrl) {
         const pId = p.provider_post_id ? String(p.provider_post_id) : ""
@@ -251,6 +255,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         shares: Number(p.shares ?? 0),
         views: Number(p.views ?? 0),
         engagementRate: Number(p.engagement_rate ?? 0),
+        engagementAvailable,
       }
     }
 

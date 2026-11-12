@@ -61,6 +61,7 @@ import {
   SourceNotice,
   PLATFORM_LABEL,
   PostCard,
+  engagementKnown,
   fr,
   interactionsOf,
   pct,
@@ -472,9 +473,21 @@ export default function CompetitorDetailPage() {
     comments: list.reduce((a, p) => a + p.comments, 0),
     shares: list.reduce((a, p) => a + p.shares, 0),
   });
-  const month = sumPosts(currentMonthPosts);
+  const month = sumPosts(currentMonthPosts.filter(engagementKnown));
   const monthInteractions = month.likes + month.comments + month.shares;
   const monthPostCount = currentMonthPosts.length;
+  // Instagram's public page carries no like/comment counts: those posts are
+  // flagged as unavailable so a missing figure is never rendered as a real 0.
+  const monthEngagementKnown = currentMonthPosts.some(engagementKnown);
+  const monthReadableCount = currentMonthPosts.filter(engagementKnown).length;
+  const unreadableLabel = Array.from(
+    new Set(currentMonthPosts.filter((p) => !engagementKnown(p)).map((p) => p.platform))
+  )
+    .map((p) => PLATFORM_LABEL[p] ?? p)
+    .join(" et ");
+  const noEngagementDetail = unreadableLabel
+    ? `Non communiqué par ${unreadableLabel}`
+    : "Non communiqué";
 
   const prevScoped = scope(prevStats);
   const prevPostCount = prevScoped.reduce((a, s) => a + s.posts, 0);
@@ -487,7 +500,7 @@ export default function CompetitorDetailPage() {
   };
   const engagementOf = (posts: number, interactions: number) =>
     posts > 0 && displayedFollowers > 0 ? (interactions / posts / displayedFollowers) * 100 : null;
-  const monthEngagement = engagementOf(monthPostCount, monthInteractions);
+  const monthEngagement = engagementOf(monthReadableCount, monthInteractions);
   const prevEngagement = engagementOf(prevPostCount, prevInteractions);
 
   const scopedStats = scope(stats);
@@ -523,8 +536,15 @@ export default function CompetitorDetailPage() {
       )}
       {monthPostCount > 0 ? (
         <>
-          a publié <strong><CountUp value={monthPostCount} /> post{monthPostCount > 1 ? "s" : ""}</strong> et récolté{" "}
-          <strong><CountUp value={monthInteractions} /></strong> interactions.
+          a publié <strong><CountUp value={monthPostCount} /> post{monthPostCount > 1 ? "s" : ""}</strong>
+          {monthEngagementKnown ? (
+            <>
+              {" "}et récolté <strong><CountUp value={monthInteractions} /></strong> interactions
+              {unreadableLabel ? ` (hors ${unreadableLabel})` : ""}.
+            </>
+          ) : (
+            <> — les interactions ne sont pas communiquées par {unreadableLabel || "ce réseau"}.</>
+          )}
         </>
       ) : (
         <>n&apos;a rien publié pour l&apos;instant.</>
@@ -561,17 +581,23 @@ export default function CompetitorDetailPage() {
     },
     {
       label: "J'aime",
-      value: month.likes,
-      detail: monthPostCount > 0 ? `${fr(month.likes / monthPostCount)} par post` : undefined,
+      value: monthEngagementKnown ? month.likes : null,
+      detail: !monthEngagementKnown
+        ? noEngagementDetail
+        : monthReadableCount > 0
+          ? `${fr(month.likes / monthReadableCount)} par post`
+          : undefined,
     },
     {
       label: "Commentaires et partages",
-      value: month.comments + month.shares,
-      detail: `${fr(month.comments)} com., ${fr(month.shares)} partages`,
+      value: monthEngagementKnown ? month.comments + month.shares : null,
+      detail: monthEngagementKnown
+        ? `${fr(month.comments)} com., ${fr(month.shares)} partages`
+        : noEngagementDetail,
     },
     {
       label: "Taux d'engagement",
-      value: monthEngagement,
+      value: monthEngagementKnown ? monthEngagement : null,
       format: (n: number) => pct(n),
       delta:
         monthEngagement !== null && prevEngagement !== null
@@ -580,13 +606,14 @@ export default function CompetitorDetailPage() {
               positive: monthEngagement === prevEngagement ? null : monthEngagement > prevEngagement,
             }
           : null,
-      detail: "Par post, rapporté aux abonnés",
+      detail: monthEngagementKnown ? "Par post, rapporté aux abonnés" : noEngagementDetail,
     },
   ];
 
+  const rankablePosts = currentMonthPosts.filter(engagementKnown);
   const topPost =
-    currentMonthPosts.length > 0
-      ? currentMonthPosts.reduce((best, p) => (interactionsOf(p) > interactionsOf(best) ? p : best))
+    rankablePosts.length > 0
+      ? rankablePosts.reduce((best, p) => (interactionsOf(p) > interactionsOf(best) ? p : best))
       : null;
 
   const postUrlOf = (post: CompetitorPost) => {
@@ -603,8 +630,9 @@ export default function CompetitorDetailPage() {
   // ── Facts for the analysis dialog (all derived from collected posts) ──
   const withMedia = currentAllPosts.filter((p) => p.mediaUrl).length;
   const mediaShare = currentAllPosts.length > 0 ? Math.round((withMedia / currentAllPosts.length) * 100) : 0;
+  const rankableAllPosts = currentAllPosts.filter(engagementKnown);
   const weekdayTotals = Array.from({ length: 7 }, () => ({ posts: 0, interactions: 0 }));
-  for (const p of currentAllPosts) {
+  for (const p of rankableAllPosts) {
     const w = weekdayTotals[new Date(p.publishedAt).getDay()];
     w.posts += 1;
     w.interactions += interactionsOf(p);
@@ -613,10 +641,11 @@ export default function CompetitorDetailPage() {
     .map((w, i) => ({ i, avg: w.posts > 0 ? w.interactions / w.posts : 0 }))
     .sort((a, b) => b.avg - a.avg)[0];
   const WEEKDAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-  const globalLikes = currentAllPosts.reduce((acc, p) => acc + p.likes, 0);
-  const globalComments = currentAllPosts.reduce((acc, p) => acc + p.comments, 0);
-  const globalShares = currentAllPosts.reduce((acc, p) => acc + p.shares, 0);
+  const globalLikes = rankableAllPosts.reduce((acc, p) => acc + p.likes, 0);
+  const globalComments = rankableAllPosts.reduce((acc, p) => acc + p.comments, 0);
+  const globalShares = rankableAllPosts.reduce((acc, p) => acc + p.shares, 0);
   const globalInteractions = globalLikes + globalComments + globalShares;
+  const globalEngagementKnown = rankableAllPosts.length > 0;
 
   const btn =
     "inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors hover:bg-slate-50 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5722]";
@@ -1005,29 +1034,35 @@ export default function CompetitorDetailPage() {
                 Répartition des réactions
               </h4>
               <p className="mt-0.5 text-xs text-slate-500">
-                Typologie des {globalInteractions} interactions mesurées sur ce concurrent.
+                {globalEngagementKnown
+                  ? `Typologie des ${globalInteractions} interactions mesurées sur ce concurrent.`
+                  : `Interactions non communiquées par ${unreadableLabel || "ce réseau"}.`}
               </p>
 
               <div className="mt-4 flex flex-col gap-3">
                 <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    style={{
-                      width: `${globalInteractions > 0 ? (globalLikes / globalInteractions) * 100 : 70}%`,
-                    }}
-                    className="bg-[#FF5722]"
-                  />
-                  <div
-                    style={{
-                      width: `${globalInteractions > 0 ? (globalComments / globalInteractions) * 100 : 20}%`,
-                    }}
-                    className="bg-slate-900"
-                  />
-                  <div
-                    style={{
-                      width: `${globalInteractions > 0 ? (globalShares / globalInteractions) * 100 : 10}%`,
-                    }}
-                    className="bg-slate-400"
-                  />
+                  {globalEngagementKnown && globalInteractions > 0 ? (
+                    <>
+                      <div
+                        style={{
+                          width: `${(globalLikes / globalInteractions) * 100}%`,
+                        }}
+                        className="bg-[#FF5722]"
+                      />
+                      <div
+                        style={{
+                          width: `${(globalComments / globalInteractions) * 100}%`,
+                        }}
+                        className="bg-slate-900"
+                      />
+                      <div
+                        style={{
+                          width: `${(globalShares / globalInteractions) * 100}%`,
+                        }}
+                        className="bg-slate-400"
+                      />
+                    </>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 pt-2 text-xs">
@@ -1036,21 +1071,33 @@ export default function CompetitorDetailPage() {
                       <span className="size-2 rounded-full bg-[#FF5722]" />
                       J&apos;aime
                     </span>
-                    <span className="text-base font-bold text-slate-900">{globalLikes}</span>
+                    <span
+                      className={`text-base font-bold ${globalEngagementKnown ? "text-slate-900" : "text-slate-400"}`}
+                    >
+                      {globalEngagementKnown ? globalLikes : "n/d"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-0.5 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
                     <span className="flex items-center gap-1.5 font-medium text-slate-600 text-[11px]">
                       <span className="size-2 rounded-full bg-slate-900" />
                       Commentaires
                     </span>
-                    <span className="text-base font-bold text-slate-900">{globalComments}</span>
+                    <span
+                      className={`text-base font-bold ${globalEngagementKnown ? "text-slate-900" : "text-slate-400"}`}
+                    >
+                      {globalEngagementKnown ? globalComments : "n/d"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-0.5 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
                     <span className="flex items-center gap-1.5 font-medium text-slate-600 text-[11px]">
                       <span className="size-2 rounded-full bg-slate-400" />
                       Partages
                     </span>
-                    <span className="text-base font-bold text-slate-900">{globalShares}</span>
+                    <span
+                      className={`text-base font-bold ${globalEngagementKnown ? "text-slate-900" : "text-slate-400"}`}
+                    >
+                      {globalEngagementKnown ? globalShares : "n/d"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1067,6 +1114,7 @@ export default function CompetitorDetailPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl border border-slate-200 bg-white shadow-2xl">
           {selectedPostDetail && (() => {
             const PlatformIcon = ICON_MAP[selectedPostDetail.platform] || FacebookIcon;
+            const detailEngagementKnown = engagementKnown(selectedPostDetail);
             const platformObj = competitor.platforms.find((p) => p.platform === selectedPostDetail.platform);
             const postTargetUrl =
               selectedPostDetail.postUrl ||
@@ -1134,8 +1182,8 @@ export default function CompetitorDetailPage() {
                         <Heart className="size-3.5 text-[#FF5722]" />
                         J&apos;aime
                       </span>
-                      <span className="mt-1 text-sm font-extrabold text-slate-900">
-                        {selectedPostDetail.likes}
+                      <span className={`mt-1 text-sm font-extrabold ${detailEngagementKnown ? "text-slate-900" : "text-slate-400"}`}>
+                        {detailEngagementKnown ? selectedPostDetail.likes : "n/d"}
                       </span>
                     </div>
                     <div className="flex flex-col items-center border-l border-slate-200">
@@ -1143,8 +1191,8 @@ export default function CompetitorDetailPage() {
                         <MessageCircle className="size-3.5 text-slate-600" />
                         Commentaires
                       </span>
-                      <span className="mt-1 text-sm font-extrabold text-slate-900">
-                        {selectedPostDetail.comments}
+                      <span className={`mt-1 text-sm font-extrabold ${detailEngagementKnown ? "text-slate-900" : "text-slate-400"}`}>
+                        {detailEngagementKnown ? selectedPostDetail.comments : "n/d"}
                       </span>
                     </div>
                     <div className="flex flex-col items-center border-l border-slate-200">
@@ -1152,8 +1200,8 @@ export default function CompetitorDetailPage() {
                         <Share2 className="size-3.5 text-slate-600" />
                         Partages
                       </span>
-                      <span className="mt-1 text-sm font-extrabold text-slate-900">
-                        {selectedPostDetail.shares}
+                      <span className={`mt-1 text-sm font-extrabold ${detailEngagementKnown ? "text-slate-900" : "text-slate-400"}`}>
+                        {detailEngagementKnown ? selectedPostDetail.shares : "n/d"}
                       </span>
                     </div>
                     <div className="flex flex-col items-center border-l border-slate-200">
@@ -1162,7 +1210,7 @@ export default function CompetitorDetailPage() {
                         Engagement
                       </span>
                       <span className="mt-1 text-sm font-extrabold text-[#FF5722]">
-                        {selectedPostDetail.engagementRate > 0
+                        {detailEngagementKnown && selectedPostDetail.engagementRate > 0
                           ? `${selectedPostDetail.engagementRate.toFixed(1)}%`
                           : "—"}
                       </span>

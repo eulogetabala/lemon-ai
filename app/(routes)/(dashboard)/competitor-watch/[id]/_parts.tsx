@@ -59,6 +59,13 @@ export function PlatformTag({ platform, className }: { platform: string; classNa
 export const interactionsOf = (p: Pick<CompetitorPost, "likes" | "comments" | "shares">) =>
   p.likes + p.comments + p.shares;
 
+/**
+ * Some networks (the public Instagram page) expose no engagement: a stored 0
+ * then means "unknown" and must not be shown as "nobody reacted".
+ */
+export const engagementKnown = (p: Pick<CompetitorPost, "engagementAvailable">) =>
+  p.engagementAvailable !== false;
+
 export const fr = (n: number) => Math.round(n).toLocaleString("fr-FR");
 
 export const pct = (n: number, digits = 2) => `${n.toFixed(digits).replace(".", ",")} %`;
@@ -457,13 +464,24 @@ export function MonthSummary({ title, metrics, animationKey }: { title: string; 
 
 /* ───────────────────────── Posts ───────────────────────── */
 
+const NOT_REPORTED_HINT =
+  "Instagram n'expose pas les réactions des pages publiques : valeur indisponible";
+
 function Stats({ post, engagement }: { post: CompetitorPost; engagement: number | null }) {
+  const known = engagementKnown(post);
+  const value = (n: number) =>
+    known ? formatNumber(n) : <span className="font-medium text-slate-400">n/d</span>;
   return (
-    <ul className="flex items-center gap-3 text-xs font-semibold tabular-nums text-slate-700">
-      <li className="flex items-center gap-1" title="J'aime"><Heart className="size-3.5 text-slate-400" />{formatNumber(post.likes)}</li>
-      <li className="flex items-center gap-1" title="Commentaires"><MessageCircle className="size-3.5 text-slate-400" />{formatNumber(post.comments)}</li>
-      <li className="flex items-center gap-1" title="Partages"><Repeat2 className="size-3.5 text-slate-400" />{formatNumber(post.shares)}</li>
-      {engagement !== null && <li className="text-[#E64A19]" title="Interactions rapportées aux abonnés">{pct(engagement)}</li>}
+    <ul
+      className={cn(
+        "flex items-center gap-3 text-xs font-semibold tabular-nums",
+        known ? "text-slate-700" : "text-slate-500",
+      )}
+    >
+      <li className="flex items-center gap-1" title={known ? "J'aime" : NOT_REPORTED_HINT}><Heart className="size-3.5 text-slate-400" />{value(post.likes)}</li>
+      <li className="flex items-center gap-1" title={known ? "Commentaires" : NOT_REPORTED_HINT}><MessageCircle className="size-3.5 text-slate-400" />{value(post.comments)}</li>
+      <li className="flex items-center gap-1" title={known ? "Partages" : NOT_REPORTED_HINT}><Repeat2 className="size-3.5 text-slate-400" />{value(post.shares)}</li>
+      {known && engagement !== null && <li className="text-[#E64A19]" title="Interactions rapportées aux abonnés">{pct(engagement)}</li>}
     </ul>
   );
 }
@@ -496,7 +514,9 @@ export function FeaturedPost({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
           <PlatformTag platform={post.platform} />
           <time dateTime={post.publishedAt}>{postDate(post.publishedAt, true)}</time>
-          <span className="font-semibold text-slate-900">{fr(interactionsOf(post))} interactions</span>
+          <span className="font-semibold text-slate-900">
+            {engagementKnown(post) ? `${fr(interactionsOf(post))} interactions` : "Engagement n/d"}
+          </span>
         </div>
         <p className="line-clamp-2 text-[15px] font-medium leading-snug text-slate-900">
           {text || "Publication sans texte : ouvrez-la pour voir le visuel."}
