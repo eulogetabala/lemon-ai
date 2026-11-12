@@ -59,6 +59,7 @@ import {
   MonthSummary,
   PulseCard,
   SourceNotice,
+  SyncNote,
   PLATFORM_LABEL,
   PostCard,
   engagementKnown,
@@ -877,6 +878,12 @@ export default function CompetitorDetailPage() {
             </div>
           </div>
         </div>
+
+        <SyncNote
+          sources={currentPlatforms.map((p) => ({ platform: p.platform, note: p.lastError ?? null }))}
+          onSync={handleSync}
+          syncing={isSyncing}
+        />
 
         {displayedPosts.length === 0 ? (
           <SourceNotice

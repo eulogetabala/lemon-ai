@@ -324,8 +324,36 @@ function createProvider(type:ChannelTypeEnum,opts: { pkce?: boolean} = {}): OAut
           )
         }
 
-        // Prefer the first page that has a usable page access token.
-        const page = pages.find((p) => p?.access_token) ?? pages[0]
+        // Instagram Business Discovery only works from a Facebook Page token whose
+        // Page has an Instagram Business account linked. Probe that separately so a
+        // missing instagram_basic scope can never break the Facebook connection.
+        type LinkedPage = {
+          id?: string
+          access_token?: string
+          instagram_business_account?: { id?: string }
+        }
+        let linkedInstagramPageId: string | null = null
+        try {
+          const linkedResponse = await fetch(
+            `https://graph.facebook.com/v19.0/me/accounts?fields=id,access_token,instagram_business_account{id,username}&limit=100&access_token=${encodeURIComponent(accessToken)}`,
+            { headers: { Accept: "application/json" } },
+          )
+          if (linkedResponse.ok) {
+            const linkedData = await linkedResponse.json().catch(() => null)
+            const linkedPages: LinkedPage[] = Array.isArray(linkedData?.data) ? linkedData.data : []
+            linkedInstagramPageId =
+              linkedPages.find((p) => p?.access_token && p?.instagram_business_account?.id)?.id ??
+              null
+          }
+        } catch {
+          // Best effort: the connection still works, only Instagram stats stay limited.
+        }
+
+        // Prefer the Page linked to Instagram, otherwise the first with a usable token.
+        const page =
+          (linkedInstagramPageId ? pages.find((p) => p.id === linkedInstagramPageId) : undefined) ??
+          pages.find((p) => p?.access_token) ??
+          pages[0]
         if (!page?.id || !page?.access_token) {
           throw new Error(
             "La Page Facebook n'a pas renvoyé de jeton d'accès. Vérifiez les permissions pages_show_list / pages_manage_posts dans Meta.",

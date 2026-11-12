@@ -634,3 +634,53 @@ export function SourceNotice({
     </div>
   );
 }
+
+/**
+ * Partial-collection banner: some posts were collected but a source still
+ * reports a limitation (missing Meta permissions, scraping fallback…). It has
+ * to stay visible, otherwise unavailable stats read as real zeros.
+ */
+export function SyncNote({
+  sources,
+  onSync,
+  syncing,
+}: {
+  sources: { platform: string; note: string | null }[];
+  onSync: () => void;
+  syncing: boolean;
+}) {
+  const notes = sources.filter((s) => s.note);
+  if (notes.length === 0) return null;
+
+  return (
+    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <ul className="flex flex-col gap-2">
+          {notes.map((s) => {
+            const Icon = ICON_MAP[s.platform] || FacebookIcon;
+            return (
+              <li key={s.platform} className="flex items-start gap-2.5 text-sm">
+                <HugeiconsIcon icon={Icon} className="mt-0.5 size-4 shrink-0 text-amber-700" />
+                <p className="max-w-[70ch] text-amber-900">
+                  <span className="font-semibold">{PLATFORM_LABEL[s.platform] ?? s.platform} incomplet — </span>
+                  {s.note}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+        <button
+          type="button"
+          onClick={onSync}
+          disabled={syncing}
+          className={cn(
+            "rounded-lg border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60",
+            focusRing,
+          )}
+        >
+          {syncing ? "Synchronisation…" : "Resynchroniser"}
+        </button>
+      </div>
+    </div>
+  );
+}

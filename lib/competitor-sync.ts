@@ -1120,6 +1120,15 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
   }
 }
 
+/**
+ * Why Instagram engagement is out of reach. Meta only exposes like/comment counts
+ * through Business Discovery, which requires the caller to be an Instagram
+ * Business/Creator account linked to a Facebook Page and to hold the Facebook
+ * Login scopes below — the Instagram Login product alone cannot do it.
+ */
+const IG_DISCOVERY_REQUIREMENT =
+  "Meta ne fournit les statistiques Instagram qu'à un compte Business/Créateur relié à une Page Facebook : reconnectez Facebook en cochant cette Page (droits instagram_basic, instagram_manage_insights, pages_read_engagement, business_management), puis resynchronisez."
+
 async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential): Promise<FetchedPage> {
   const username = usernameFromHandle(row.handle) || usernameFromHandle(row.profile_url)
   if (!username) return { posts: [], note: "Identifiant Instagram manquant." }
@@ -1178,16 +1187,11 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
   }
 
   if (!foundBusinessAccount) {
-    return publicFallback(
-      `Aucun compte Instagram Business/Créateur utilisable parmi vos comptes connectés.${
-        resolveErrors.length ? ` Détail Meta : ${[...new Set(resolveErrors)].slice(0, 3).join(" | ")}` : ""
-      }`,
-    )
+    console.warn("[instagram] aucun compte compatible Business Discovery", [...new Set(resolveErrors)].slice(0, 3))
+    return publicFallback(IG_DISCOVERY_REQUIREMENT)
   }
   if (!discovery?.business_discovery) {
-    return publicFallback(
-      `Business Discovery indisponible pour « ${username} » (${lastError || "compte non pro / scopes Meta manquants"})`,
-    )
+    return publicFallback(`Business Discovery indisponible pour « ${username} » (${lastError || "compte non professionnel"}). ${IG_DISCOVERY_REQUIREMENT}`)
   }
 
   const bd = discovery.business_discovery
@@ -1253,11 +1257,13 @@ async function resolveInstagramBusinessAccount(
       token: linkedPage.access_token || token,
     }
   }
-  // Instagram Login token: /me is the Instagram professional account itself.
-  // Business Discovery of OTHER accounts often fails on graph.instagram.com — still try.
+  // Instagram Login token (graph.instagram.com): /me answers, but that host has no
+  // business_discovery field. Treating it as a usable anchor only produced the
+  // misleading "Tried accessing nonexisting field (business_discovery)" error, so
+  // stop here and let the caller explain the real prerequisite.
   const ig = "graph.instagram.com/v21.0"
-  const me = await get(`https://${ig}/me?fields=user_id,account_type`)
-  if (me?.user_id || me?.id) return { id: String(me.user_id ?? me.id), host: ig, token }
+  const me = await get(`https://${ig}/me?fields=user_id,account_type`, token)
+  if (me?.user_id || me?.id) errors.push(IG_DISCOVERY_REQUIREMENT)
   return null
 }
 
@@ -1454,7 +1460,11 @@ async function getMetaCredentials(supabase: SupabaseClient, userId: string): Pro
   const { data: types } = await supabase.from("channel_types").select("id, type").in("type", ["instagram", "facebook"])
   const typeIds = (types ?? []).map((t: any) => t.id)
   if (typeIds.length === 0) return null
-  const order = (id: string) => ((types ?? []).find((t: any) => t.id === id)?.type === "instagram" ? 0 : 1)
+  const typeOf = (id: string) => (types ?? []).find((t: any) => t.id === id)?.type as string | undefined
+  // Business Discovery only exists on graph.facebook.com, so a Facebook credential
+  // (user or Page token) is the only one that can anchor it. Try those first and
+  // keep the Instagram Login token as a last resort.
+  const order = (id: string) => (typeOf(id) === "facebook" ? 0 : 1)
   const { data: channels } = await supabase
     .from("user_channels")
     .select("id, channel_type_id, access_token, refresh_token, token_expires_at, created_at")
@@ -1468,7 +1478,7 @@ async function getMetaCredentials(supabase: SupabaseClient, userId: string): Pro
     let token = c.access_token ? decrypt(c.access_token) : null
     const expiresAt = c.token_expires_at ? new Date(c.token_expires_at).getTime() : 0
     // Instagram long-lived tokens last 60 days: extend them a week before expiry.
-    if (token && order(c.channel_type_id) === 0 && expiresAt && Date.now() > expiresAt - 7 * 86_400_000) {
+    if (token && typeOf(c.channel_type_id) === "instagram" && expiresAt && Date.now() > expiresAt - 7 * 86_400_000) {
       const refreshToken = c.refresh_token ? decrypt(c.refresh_token) : null
       const provider = getOAuthProvider(ChannelTypeEnum.INSTAGRAM)
       if (refreshToken && provider && Date.now() < expiresAt) {
