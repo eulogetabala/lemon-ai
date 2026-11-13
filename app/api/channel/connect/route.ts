@@ -3,21 +3,31 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { buildProviderRedirectUri, getOAuthProvider, getRequestOrigin } from "@/lib/social-oauth";
 import { createPkcePair, getPkceCookieName } from "@/lib/social-oauth/pkce";
 import { createOAuthState } from "@/lib/social-oauth/state";
-import { checkChannelConnectLimit, getPlanFromClerkHas } from "@/lib/plan-limits";
-import { auth } from "@clerk/nextjs/server";
+import { checkChannelConnectLimit, resolvePlanForUserId } from "@/lib/plan-limits-server";
+import { getWorkspaceFromRequest } from "@/lib/request-workspace";
 import { NextRequest, NextResponse } from "next/server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
+// The OAuth state replays this value as a redirect target after the provider
+// callback, so it must stay a same-origin path (an absolute URL would be an
+// open redirect).
+function safeReturnTo(value: unknown): string {
+    if (typeof value !== 'string') return '/settings';
+    const path = value.trim();
+    if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return '/settings';
+    return path;
+}
+
 export async function POST(request: NextRequest) {
     try {
-        const { has, userId: clerkUserId } = await auth();
         const { supabase, userId } = await getSupabaseServerClient();
         if (!userId) return NextResponse.json({ error: 'User not found' }, { status: 401 });
 
-        const planId = getPlanFromClerkHas(has);
+        const planId = await resolvePlanForUserId(userId);
+        const workspace = await getWorkspaceFromRequest(request, supabase, userId);
 
-        const { channelTypeId } = await request.json();
+        const { channelTypeId, returnTo } = await request.json();
         if (!channelTypeId) return NextResponse.json({ error: 'Channel type ID is required' }, { status: 400 });
 
         const { data: channelType, error } = await supabase
@@ -36,12 +46,13 @@ export async function POST(request: NextRequest) {
             .from("user_channels")
             .select("id")
             .eq("user_id", userId)
+            .eq("workspace_id", workspace.id)
             .eq("channel_type_id", channelTypeId)
             .eq("is_connected", true)
             .maybeSingle();
 
         if (!existingChannel) {
-            const limitCheck = await checkChannelConnectLimit(supabase, userId, planId);
+            const limitCheck = await checkChannelConnectLimit(supabase, userId, planId, workspace.id);
             if (!limitCheck.allowed) {
                 return NextResponse.json(
                     { error: limitCheck.message || "Limite de canaux atteinte pour votre forfait. Passez au forfait Pro pour connecter des canaux illimités." },
@@ -55,7 +66,7 @@ export async function POST(request: NextRequest) {
         // callback below (Instagram/Threads require an HTTPS redirect_uri).
         const requestOrigin = getRequestOrigin(request);
         const baseUrl = (requestOrigin || request.nextUrl.origin).replace(/\/+$/, "");
-        const redirectTo = `${baseUrl}/settings`;
+        const redirectTo = `${baseUrl}${safeReturnTo(returnTo)}`;
         // DB stores lowercase ('twitter'), enum is uppercase ('TWITTER') — normalise
         const normalizedType = channelType.type.toUpperCase() as ChannelTypeEnum;
         const provider = getOAuthProvider(normalizedType);
@@ -69,6 +80,7 @@ export async function POST(request: NextRequest) {
             channelTypeId: channelType.id,
             channelType: normalizedType,
             redirectTo,
+            workspaceId: workspace.id,
         })
 
         const callbackUrl = buildProviderRedirectUri(normalizedType, requestOrigin || request.nextUrl.origin);

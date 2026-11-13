@@ -7,6 +7,8 @@ export type FacebookPageOption = {
   name: string
   pictureUrl: string | null
   accessToken: string
+  /** Instagram Business/Creator account linked to this Page, if any. */
+  instagramUsername: string | null
 }
 
 export type FacebookPageSelectSession = {
@@ -14,11 +16,12 @@ export type FacebookPageSelectSession = {
   channelTypeId: string
   userAccessToken: string
   tokenExpiresAt: string | null
+  workspaceId?: string | null
 }
 
 export async function listFacebookPages(userAccessToken: string): Promise<FacebookPageOption[]> {
   const url =
-    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture{url}&limit=100&access_token=${encodeURIComponent(userAccessToken)}`
+    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture{url},instagram_business_account{username}&limit=100&access_token=${encodeURIComponent(userAccessToken)}`
 
   const response = await fetch(url, { headers: { Accept: "application/json" } })
   const data = await response.json()
@@ -38,6 +41,9 @@ export async function listFacebookPages(userAccessToken: string): Promise<Facebo
       name: String(p.name ?? "Page sans nom"),
       pictureUrl: p?.picture?.data?.url ?? null,
       accessToken: String(p.access_token),
+      instagramUsername: p?.instagram_business_account?.username
+        ? String(p.instagram_business_account.username)
+        : null,
     }))
 }
 

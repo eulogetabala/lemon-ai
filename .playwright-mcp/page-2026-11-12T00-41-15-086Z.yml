@@ -1,0 +1,490 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "KORAPULSE v2.6" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e6]: KORAPULSE
+          - generic [ref=e15]: v2.6
+        - navigation [ref=e16]:
+          - link "Fonctionnalités" [ref=e17] [cursor=pointer]:
+            - /url: "#fonctionnalites"
+          - link "Canaux" [ref=e18] [cursor=pointer]:
+            - /url: "#canaux"
+          - link "Veille" [ref=e19] [cursor=pointer]:
+            - /url: "#veille"
+          - link "Pour qui" [ref=e20] [cursor=pointer]:
+            - /url: "#pour-qui"
+          - link "Tarifs" [ref=e21] [cursor=pointer]:
+            - /url: "#tarifs"
+          - link "FAQ" [ref=e22] [cursor=pointer]:
+            - /url: "#faq"
+        - generic [ref=e23]:
+          - link "Connexion" [ref=e24] [cursor=pointer]:
+            - /url: /sign-in
+          - link "Commencer gratuitement" [ref=e25] [cursor=pointer]:
+            - /url: /sign-up
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - generic [ref=e31]: Moteur d’adaptation 2026 · 8 canaux
+        - heading "Une idée. Huit réseaux. Un seul geste." [level=1] [ref=e34]:
+          - generic [ref=e35]: Une idée.
+          - generic [ref=e37]: Huit réseaux.
+          - generic [ref=e39]: Un seul geste.
+        - paragraph [ref=e41]: Une idée brute. KORAPULSE la découpe, la réécrit pour chaque réseau et la programme au bon créneau. Vous validez — ça part.
+        - generic [ref=e42]:
+          - link "Commencer gratuitement" [ref=e43] [cursor=pointer]:
+            - /url: /sign-up
+          - button "Explorer le simulateur" [ref=e46] [cursor=pointer]
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - generic [ref=e52]: "08"
+            - generic [ref=e53]: canaux natifs
+          - generic [ref=e54]:
+            - generic [ref=e55]: −15h
+            - generic [ref=e56]: par semaine
+          - generic [ref=e57]:
+            - generic [ref=e58]: 1-clic
+            - generic [ref=e59]: pour valider
+        - generic [ref=e60]:
+          - generic [ref=e61]: 8 canaux natifs
+          - generic [ref=e96]: Aucune carte bancaire
+          - generic [ref=e98]: Mise en place en 60 secondes
+      - generic [ref=e99]:
+        - generic [ref=e100]:
+          - generic [ref=e104]: −15 h
+          - generic [ref=e105]: par semaine
+        - generic [ref=e106]: Validation en 1 clic
+        - generic [ref=e112]:
+          - generic [ref=e113]:
+            - generic [ref=e114]: Studio unifié KORAPULSE
+            - generic [ref=e120]:
+              - generic [ref=e121]: Adapté aux algorithmes 2026
+              - generic [ref=e122]: Connecté 8/8
+              - generic [ref=e124]: Tout programmer
+          - generic [ref=e125]:
+            - generic [ref=e130]:
+              - paragraph [ref=e131]: Note source brute · 00:14
+              - paragraph [ref=e132]: « J’ai testé trois façons de recycler un contenu… »
+            - button "Générer la galaxie" [ref=e133] [cursor=pointer]
+          - generic [ref=e136]:
+            - generic [ref=e137]:
+              - generic [ref=e138]: LinkedIn
+              - paragraph [ref=e144]: Studio KORAPULSE · mar. 09 h
+              - paragraph [ref=e145]: Trois façons de recycler un contenu sans le répéter. La troisième a doublé mes vues.
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - term [ref=e148]: Signes
+                  - definition [ref=e149]: 1 420
+                - generic [ref=e150]:
+                  - term [ref=e151]: Format
+                  - definition [ref=e152]: PDF
+              - paragraph [ref=e153]: Hook 2 lignes · 8 pages
+            - generic [ref=e156]:
+              - generic [ref=e157]: X / Twitter
+              - paragraph [ref=e161]: Studio KORAPULSE · mar. 12 h
+              - paragraph [ref=e162]: Recycler n’est pas reposter. 1. Change l’angle 2. Change la preuve 3. Change le format
+              - generic [ref=e163]:
+                - generic [ref=e164]:
+                  - term [ref=e165]: Signes
+                  - definition [ref=e166]: "264"
+                - generic [ref=e167]:
+                  - term [ref=e168]: Format
+                  - definition [ref=e169]: Thread
+              - paragraph [ref=e170]: 4 tweets · 1 visuel
+            - generic [ref=e173]:
+              - generic [ref=e174]: TikTok
+              - paragraph [ref=e179]: Studio KORAPULSE · mar. 18 h
+              - paragraph [ref=e180]: "[HOOK 0-3 s] Arrête de reposter tes contenus. [B-ROLL] écran scindé avant / après. [CALL] Tu as trois formats, pas un."
+              - generic [ref=e181]:
+                - generic [ref=e182]:
+                  - term [ref=e183]: Durée
+                  - definition [ref=e184]: 28 s
+                - generic [ref=e185]:
+                  - term [ref=e186]: Format
+                  - definition [ref=e187]: 9:16
+              - paragraph [ref=e188]: Script + 6 plans b-roll
+    - generic [ref=e192]:
+      - generic [ref=e194]:
+        - generic [ref=e195]:
+          - generic [ref=e196]: 02 · Fonctionnalités architecturées
+          - heading "Tout pour publier sans stress. Une architecture pensée pour le flux." [level=2] [ref=e197]
+        - paragraph [ref=e199]: Chaque module de KORAPULSE a été taillé pour supprimer la friction entre l'idée créative et la mise en ligne effective.
+      - generic [ref=e200]:
+        - generic [ref=e202]:
+          - generic [ref=e203]:
+            - generic [ref=e204]: "01"
+            - generic [ref=e205]: Adaptation cognitive
+          - heading "Moteur IA Polyglotte & Contextuel" [level=3] [ref=e206]
+          - paragraph [ref=e207]: "L'IA n'est pas un simple traducteur de texte : elle maîtrise la sociologie propre à chaque réseau. Votre texte acquiert la rigueur formelle sur LinkedIn, la vivacité percutante sur Twitter et l'émotion narrative sur Instagram."
+          - generic [ref=e208]:
+            - generic [ref=e209]:
+              - paragraph [ref=e211]: Ton LinkedIn
+              - paragraph [ref=e213]: Structure en bullet points, accroche interrogative, focus sur le ROI.
+            - generic [ref=e214]:
+              - paragraph [ref=e216]: Ton X / Threads
+              - paragraph [ref=e218]: Phrases courtes, rythme syncopé, verbes d'action tranchants.
+            - generic [ref=e219]:
+              - paragraph [ref=e221]: Ton TikTok
+              - paragraph [ref=e223]: Pattern interrupt immédiat, découpage sonore et instructions de cadrage.
+          - generic [ref=e224]:
+            - paragraph [ref=e225]: Préservation automatique de votre voix de marque
+            - link "Explorer le moteur" [ref=e226] [cursor=pointer]:
+              - /url: /sign-up
+        - generic [ref=e230]:
+          - generic [ref=e231]:
+            - generic [ref=e232]: "02"
+            - generic [ref=e233]: Vue macro
+          - heading "Calendrier Universel" [level=3] [ref=e234]
+          - paragraph [ref=e235]: Visualisez le mois complet d'un seul coup d'œil. Glissez-déposez vos publications et ajustez instantanément les synchronisations.
+          - generic [ref=e236]:
+            - generic [ref=e237]: LUN 16
+            - generic [ref=e238]: MAR 17
+            - generic [ref=e239]: MER 18
+            - generic [ref=e240]: JEU 19
+          - generic [ref=e241]:
+            - generic [ref=e242]: in 09h
+            - generic [ref=e244]: 𝕏 12h
+            - generic [ref=e246]: ig 18h
+            - generic [ref=e248]: tk 21h
+          - generic [ref=e250]:
+            - paragraph [ref=e251]: Zéro conflit de programmation
+            - generic [ref=e252]: Sync bidirectionnelle
+      - generic [ref=e253]:
+        - generic [ref=e255]:
+          - generic [ref=e256]:
+            - generic [ref=e257]: "03"
+            - generic [ref=e258]: Formats natifs
+          - heading "Adaptation Granulaire" [level=3] [ref=e259]
+          - paragraph [ref=e260]: Compteurs de signes en temps réel, ratio d'images optimisé pour smartphone (4:5, 9:16, 1:1), et balises alt générées automatiquement.
+          - generic [ref=e261]:
+            - generic [ref=e262]:
+              - generic [ref=e263]: Ratio LinkedIn Carrousel
+              - generic [ref=e264]: 1080 × 1350 px
+            - generic [ref=e265]:
+              - generic [ref=e266]: X Caractères max
+              - generic [ref=e267]: 280 / 280 (100%)
+          - paragraph [ref=e269]: Prévisualisation mobile pixel-perfect
+        - generic [ref=e273]:
+          - generic [ref=e274]:
+            - generic [ref=e275]: "04"
+            - generic [ref=e276]: Algorithme smart-dispatch
+          - heading "Automatisation & Planification Intelligente" [level=3] [ref=e277]
+          - paragraph [ref=e278]: KORAPULSE analyse les pics d'attention de votre propre audience en Afrique francophone, Europe et au-delà. Il cale la diffusion à la minute précise où votre reach potentiel est maximal.
+          - generic [ref=e279]:
+            - generic [ref=e284]:
+              - paragraph [ref=e285]: Créneau recommandé pour Abidjan & Dakar (GMT)
+              - paragraph [ref=e286]: "Pic d'engagement LinkedIn : Mardi à 08h45 · +34% de portée"
+            - link "Activer Auto-Pilot" [ref=e287] [cursor=pointer]:
+              - /url: /sign-up
+          - generic [ref=e288]:
+            - paragraph [ref=e289]: Support natif des fuseaux horaires multiples
+            - generic [ref=e290]: 0 latence sur les API officielles
+    - generic [ref=e292]:
+      - generic [ref=e294]:
+        - generic [ref=e295]: Canaux
+        - heading "8 canaux natifs. Zéro compromis." [level=2] [ref=e296]
+        - paragraph [ref=e297]: Chaque réseau a ses propres règles de format, de longueur et de ton. KORAPULSE les applique automatiquement à votre contenu.
+      - generic [ref=e298]:
+        - generic [ref=e299]:
+          - generic [ref=e300]:
+            - button "LinkedIn Posts longs, carrousels PDF, ton analytique." [pressed] [ref=e301] [cursor=pointer]:
+              - generic [ref=e307]:
+                - generic [ref=e308]: LinkedIn
+                - generic [ref=e309]: Posts longs, carrousels PDF, ton analytique.
+            - button "X / Twitter Threads courts, hooks, rythme haché." [ref=e312] [cursor=pointer]:
+              - generic [ref=e316]:
+                - generic [ref=e317]: X / Twitter
+                - generic [ref=e318]: Threads courts, hooks, rythme haché.
+            - button "Instagram Légendes, carrousels 4:5, hashtags utiles." [ref=e321] [cursor=pointer]:
+              - generic [ref=e327]:
+                - generic [ref=e328]: Instagram
+                - generic [ref=e329]: Légendes, carrousels 4:5, hashtags utiles.
+            - button "TikTok Scripts vidéo, hook de 3 s, plans b-roll." [ref=e332] [cursor=pointer]:
+              - generic [ref=e337]:
+                - generic [ref=e338]: TikTok
+                - generic [ref=e339]: Scripts vidéo, hook de 3 s, plans b-roll.
+          - generic [ref=e342]:
+            - paragraph [ref=e343]: Aussi inclus
+            - generic [ref=e344]:
+              - generic [ref=e345]: Threads
+              - generic [ref=e348]: Facebook
+              - generic [ref=e352]: Bluesky
+              - generic [ref=e355]: YouTube
+        - generic [ref=e360]:
+          - generic [ref=e361]:
+            - generic [ref=e368]:
+              - paragraph [ref=e369]: LinkedIn
+              - paragraph [ref=e370]: Post long + carrousel PDF
+            - generic [ref=e371]: 1 420 / 3 000 caractères
+          - generic [ref=e376]:
+            - paragraph [ref=e377]: Le vrai coût de la publication manuelle n’est pas le temps de rédaction. C’est la dispersion.
+            - paragraph [ref=e378]: Trois réseaux, trois formats, trois horaires. On réécrit la même idée en changeant les emojis. Et la semaine suivante, on recommence.
+            - paragraph [ref=e379]: Une note vocale. Huit déclinaisons. Un seul calendrier.
+          - generic [ref=e380]:
+            - paragraph [ref=e381]: Règles du canal
+            - generic [ref=e382]:
+              - generic [ref=e383]: Max 3 000 signes
+              - generic [ref=e384]: Carrousel PDF natif
+              - generic [ref=e385]: Ton analytique
+            - link "Connecter ce canal" [ref=e387] [cursor=pointer]:
+              - /url: /sign-up
+    - generic [ref=e391]:
+      - generic [ref=e392]:
+        - generic [ref=e394]:
+          - generic [ref=e395]: Veille concurrentielle
+          - heading "Ce que fait le marché, pendant que vous écrivez." [level=2] [ref=e396]
+          - paragraph [ref=e397]: "Ajoutez les comptes qui comptent — concurrents, clients, références. KORAPULSE relève leurs publications chaque matin, puis vous rend la lecture : audience, impressions, engagement. Mensuel, trimestriel ou annuel, au choix."
+        - generic [ref=e399]:
+          - paragraph [ref=e400]: Ce qui est relevé
+          - list [ref=e401]:
+            - listitem [ref=e402]: Audience et progression par plateforme
+            - listitem [ref=e406]: Impressions, likes, commentaires, partages
+            - listitem [ref=e410]: Cadence de publication et formats qui prennent
+      - generic [ref=e414]:
+        - generic [ref=e416]:
+          - generic [ref=e417]:
+            - generic [ref=e418]: Liste suivie
+            - generic [ref=e426]: 3 comptes
+          - generic [ref=e427]:
+            - generic [ref=e428]:
+              - generic [ref=e429]: A
+              - generic [ref=e430]:
+                - paragraph [ref=e431]: Atelier Noro
+                - paragraph [ref=e432]: "@atelier.noro · Design d’intérieur"
+                - generic [ref=e433]: il y a 6 h
+              - generic [ref=e445]:
+                - paragraph [ref=e446]: 42 800
+                - paragraph [ref=e447]: +12,4 %
+            - generic [ref=e451]:
+              - generic [ref=e452]: S
+              - generic [ref=e453]:
+                - paragraph [ref=e454]: Studio Perch
+                - paragraph [ref=e455]: "@studio.perch · Photo & direction artistique"
+                - generic [ref=e456]: hier
+              - generic [ref=e467]:
+                - paragraph [ref=e468]: 118 400
+                - paragraph [ref=e469]: +3,1 %
+            - generic [ref=e473]:
+              - generic [ref=e474]: M
+              - generic [ref=e475]:
+                - paragraph [ref=e476]: Maison Klar
+                - paragraph [ref=e477]: "@maisonklar · Menuiserie sur mesure"
+                - generic [ref=e478]: il y a 2 j
+              - generic [ref=e488]:
+                - paragraph [ref=e489]: 27 400
+                - paragraph [ref=e490]: −2,6 %
+          - paragraph [ref=e495]: Relevé automatique · chaque matin 06 h 00
+        - generic [ref=e497]:
+          - generic [ref=e498]:
+            - generic [ref=e499]: Relevé consolidé de la liste
+            - generic [ref=e500]:
+              - button "Mensuel" [pressed] [ref=e501] [cursor=pointer]
+              - button "Trimestriel" [ref=e502] [cursor=pointer]
+              - button "Annuel" [ref=e503] [cursor=pointer]
+          - generic [ref=e504]:
+            - generic [ref=e505]:
+              - paragraph [ref=e506]: Juillet → octobre 2026
+              - paragraph [ref=e507]: 4 derniers mois
+            - generic [ref=e508]:
+              - generic [ref=e509]:
+                - paragraph [ref=e510]: Impressions
+                - paragraph [ref=e511]: 5,49 M
+                - paragraph [ref=e512]: +17,1 %
+              - generic [ref=e513]:
+                - paragraph [ref=e514]: Engagement moyen
+                - paragraph [ref=e515]: 4,4 %
+                - paragraph [ref=e516]: +0,6 %
+              - generic [ref=e517]:
+                - paragraph [ref=e518]: Posts relevés
+                - paragraph [ref=e519]: "238"
+                - paragraph [ref=e520]: +4,8 %
+              - generic [ref=e521]:
+                - paragraph [ref=e522]: Audience cumulée
+                - paragraph [ref=e523]: 188 000
+                - paragraph [ref=e524]: +5,0 %
+            - generic [ref=e525]:
+              - generic [ref=e526]:
+                - generic [ref=e527]: 1,24 M
+                - generic [ref=e530]: 1,08 M
+                - generic [ref=e533]: 1,46 M
+                - generic [ref=e536]: 1,71 M
+              - generic [ref=e539]:
+                - generic [ref=e540]: JUIL
+                - generic [ref=e541]: AOÛT
+                - generic [ref=e542]: SEPT
+                - generic [ref=e543]: OCT
+            - generic [ref=e544]:
+              - paragraph [ref=e545]: Export CSV, XLSX ou PDF — une ligne par compte et par période.
+              - link "Suivre mes concurrents" [ref=e546] [cursor=pointer]:
+                - /url: /sign-up
+    - generic [ref=e550]:
+      - generic [ref=e552]:
+        - generic [ref=e553]: Pour qui
+        - heading "Pensé pour ceux qui publient. Et qui n'ont pas de temps à perdre." [level=2] [ref=e554]: Pensé pour ceux qui publient.Et qui n'ont pas de temps à perdre.
+        - paragraph [ref=e555]: Le même studio, trois rythmes de travail. Choisissez celui qui ressemble au vôtre.
+      - generic [ref=e556]:
+        - generic [ref=e558]:
+          - generic [ref=e559]: Profil A
+          - heading "Créateurs & solopreneurs" [level=3] [ref=e565]
+          - generic [ref=e566]:
+            - generic [ref=e567]: +400 %
+            - generic [ref=e568]: de régularité de publication
+          - paragraph [ref=e569]: Vous partez d’une note vocale le lundi matin. La semaine est bouclée avant le café.
+        - generic [ref=e571]:
+          - generic [ref=e572]: Profil B
+          - heading "Freelances & agences" [level=3] [ref=e580]
+          - generic [ref=e581]:
+            - generic [ref=e582]: × 3 comptes
+            - generic [ref=e583]: clients pilotés sans friction
+          - paragraph [ref=e584]: Un espace par client, un calendrier partagé, une validation en un clic avant publication.
+        - generic [ref=e586]:
+          - generic [ref=e587]: Profil C
+          - heading "Équipes marketing" [level=3] [ref=e594]
+          - generic [ref=e595]:
+            - generic [ref=e596]: 1-clic
+            - generic [ref=e597]: de la relecture à la publication
+          - paragraph [ref=e598]: Rédaction, validation, programmation. Chacun son rôle, une seule source de vérité.
+    - generic [ref=e600]:
+      - generic [ref=e602]:
+        - generic [ref=e603]: Tarifs
+        - heading "Investissez dans votre temps. Des tarifs clairs, adaptés à nos réalités." [level=2] [ref=e604]
+        - paragraph [ref=e605]: Sans engagement. Changez de plan quand votre rythme change.
+      - generic [ref=e608]:
+        - button "Mensuel" [pressed] [ref=e609] [cursor=pointer]
+        - button "Annuel −20 %" [ref=e610] [cursor=pointer]:
+          - text: Annuel
+          - generic [ref=e611]: −20 %
+      - generic [ref=e612]:
+        - generic [ref=e614]:
+          - heading "Gratuit" [level=3] [ref=e615]
+          - paragraph [ref=e616]: Idéal pour démarrer avec la planification sur les réseaux sociaux.
+          - generic [ref=e617]:
+            - generic [ref=e618]: "0"
+            - generic [ref=e619]: FCFA / mois
+          - list [ref=e620]:
+            - listitem [ref=e621]: 1 canal connecté
+            - listitem [ref=e624]: 1 concurrent sous veille
+            - listitem [ref=e627]: 10 publications planifiées / mois
+            - listitem [ref=e630]: Analytiques de base
+            - listitem [ref=e633]: 1 espace de travail
+            - listitem [ref=e636]: Support communautaire
+          - link "Commencer" [ref=e639] [cursor=pointer]:
+            - /url: /sign-up
+        - generic [ref=e643]:
+          - generic [ref=e644]: Le plus populaire
+          - heading "Pro" [level=3] [ref=e645]
+          - paragraph [ref=e646]: Pour les créateurs et solopreneurs qui publient régulièrement.
+          - generic [ref=e647]:
+            - generic [ref=e648]: 12 000
+            - generic [ref=e649]: FCFA / mois
+          - list [ref=e650]:
+            - listitem [ref=e651]: Canaux connectés illimités
+            - listitem [ref=e654]: Veille concurrentielle illimitée
+            - listitem [ref=e657]: Publications planifiées illimitées
+            - listitem [ref=e660]: Analytiques et insights avancés
+            - listitem [ref=e663]: Suggestions de contenu intelligentes
+            - listitem [ref=e666]: 5 espaces de travail
+          - link "Passer à Pro" [ref=e669] [cursor=pointer]:
+            - /url: /sign-up
+        - generic [ref=e673]:
+          - heading "Équipe" [level=3] [ref=e674]
+          - paragraph [ref=e675]: Pour les équipes en croissance qui gèrent plusieurs marques.
+          - generic [ref=e676]:
+            - generic [ref=e677]: 30 000
+            - generic [ref=e678]: FCFA / mois
+          - list [ref=e679]:
+            - listitem [ref=e680]: Tout ce qui est inclus dans Pro
+            - listitem [ref=e683]: Espaces de travail illimités
+            - listitem [ref=e686]: Collaboration d'équipe et rôles
+            - listitem [ref=e689]: Workflows d'approbation
+            - listitem [ref=e692]: Rapports en marque blanche
+          - link "Passer à Équipe" [ref=e695] [cursor=pointer]:
+            - /url: /sign-up
+      - paragraph [ref=e699]: Paiement sécurisé · vos accès réseau sont chiffrés · résiliable en un clic.
+    - generic [ref=e704]:
+      - generic [ref=e706]:
+        - generic [ref=e707]: Questions
+        - heading "Questions fréquentes." [level=2] [ref=e708]
+      - generic [ref=e709]:
+        - generic [ref=e710]:
+          - button "En quoi KORAPULSE est différent d’un simple planificateur ?" [expanded] [ref=e711] [cursor=pointer]
+          - paragraph [ref=e719]: "Un planificateur place un contenu déjà écrit. KORAPULSE part d’une matière brute — une note, un lien, un brouillon — et produit une déclinaison native par canal : longueur, ton, format, hashtags et créneau."
+        - generic [ref=e720]:
+          - button "Mes publications sont-elles vraiment adaptées à chaque réseau ?" [ref=e721] [cursor=pointer]
+          - paragraph [ref=e725]: "Oui. Chaque canal a ses règles internes : nombre de caractères, structure du hook, ratio d’image, densité de hashtags. Le moteur les applique avant l’envoi, et vous validez ce qui part."
+        - generic [ref=e726]:
+          - button "Est-ce que je garde le contrôle sur le calendrier ?" [ref=e727] [cursor=pointer]
+          - paragraph [ref=e731]: Toujours. L’Auto-Pilot propose des créneaux, vous les déplacez d’un glisser-déposer ou les verrouillez. Rien n’est publié sans votre validation.
+        - generic [ref=e732]:
+          - button "Quels canaux sont disponibles aujourd’hui ?" [ref=e733] [cursor=pointer]
+          - paragraph [ref=e737]: LinkedIn, X / Twitter, Instagram, TikTok, Threads, Facebook, Bluesky et YouTube. Tous inclus dans le plan Pro, sans module supplémentaire.
+    - generic [ref=e741]:
+      - generic [aria-hidden]: K
+      - generic [ref=e742]:
+        - heading "Reprenez contrôle absolu de votre calendrier éditorial." [level=2] [ref=e743]
+        - paragraph [ref=e744]: Connectez un canal, collez une idée. KORAPULSE s'occupe du reste — programmation, format, ton.
+        - generic [ref=e745]:
+          - link "Commencer gratuitement" [ref=e746] [cursor=pointer]:
+            - /url: /sign-up
+          - button "Voir le simulateur" [ref=e749] [cursor=pointer]
+        - paragraph [ref=e753]: Gratuit · sans carte bancaire
+    - contentinfo [ref=e754]:
+      - generic [ref=e755]:
+        - generic [ref=e756]:
+          - generic [ref=e757]:
+            - generic [ref=e758]: KORAPULSE
+            - paragraph [ref=e767]: Le studio de contenu qui transforme une idée brute en huit publications calibrées, puis les programme pour vous.
+            - generic [ref=e768]: Tous les systèmes OK
+          - generic [ref=e771]:
+            - heading "Produit" [level=3] [ref=e772]
+            - list [ref=e773]:
+              - listitem [ref=e774]:
+                - link "Fonctionnalités" [ref=e775] [cursor=pointer]:
+                  - /url: "#fonctionnalites"
+              - listitem [ref=e776]:
+                - link "Canaux" [ref=e777] [cursor=pointer]:
+                  - /url: "#canaux"
+              - listitem [ref=e778]:
+                - link "Tarifs" [ref=e779] [cursor=pointer]:
+                  - /url: "#tarifs"
+              - listitem [ref=e780]:
+                - link "Nouveautés" [ref=e781] [cursor=pointer]:
+                  - /url: "#fonctionnalites"
+          - generic [ref=e782]:
+            - heading "Ressources" [level=3] [ref=e783]
+            - list [ref=e784]:
+              - listitem [ref=e785]:
+                - link "FAQ" [ref=e786] [cursor=pointer]:
+                  - /url: "#faq"
+              - listitem [ref=e787]:
+                - link "Guide de démarrage" [ref=e788] [cursor=pointer]:
+                  - /url: "#fonctionnalites"
+              - listitem [ref=e789]:
+                - link "Pour qui" [ref=e790] [cursor=pointer]:
+                  - /url: "#pour-qui"
+              - listitem [ref=e791]:
+                - link "Statut du service" [ref=e792] [cursor=pointer]:
+                  - /url: "#"
+          - generic [ref=e793]:
+            - heading "Légal" [level=3] [ref=e794]
+            - list [ref=e795]:
+              - listitem [ref=e796]:
+                - link "Confidentialité" [ref=e797] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e798]:
+                - link "Conditions" [ref=e799] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e800]:
+                - link "Licence" [ref=e801] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e802]:
+                - link "Contact" [ref=e803] [cursor=pointer]:
+                  - /url: "#"
+          - heading "Canaux" [level=3] [ref=e805]
+        - generic [ref=e838]:
+          - paragraph [ref=e839]: © 2026 KORAPULSE — Tous droits réservés
+          - paragraph [ref=e840]: Conçu pour publier moins, et mieux.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e846] [cursor=pointer]
+  - alert [ref=e850]

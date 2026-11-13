@@ -6,13 +6,16 @@ import {
   syncCompetitorPlatform,
   usernameFromHandle,
   buildProfileUrl,
+  normalizeFacebookPostId,
 } from "@/lib/competitor-sync"
+import { isSyncDue } from "@/lib/competitor-sync-schedule"
 import { aggregatePostsByMonth } from "@/lib/competitor-stats"
 import {
   currentMonthKey,
   isMonthKey,
   monthRange,
   monthsBetween,
+  prevMonthKey,
 } from "@/lib/month"
 import type {
   CompetitorDetail,
@@ -77,23 +80,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let stats = statRows ?? []
     let posts = postRows ?? []
 
-    // If any platform has 0 posts recovered yet, trigger an immediate sync for that platform
-    const postCountByPlatform = new Map<string, number>()
-    for (const post of posts) {
-      postCountByPlatform.set(post.platform_id, (postCountByPlatform.get(post.platform_id) ?? 0) + 1)
-    }
-
+    // Auto-refresh : uniquement les plateformes arrivées à échéance. Le délai
+    // dépend du réseau (voir lib/competitor-sync-schedule.ts) afin de ne pas
+    // marteler LinkedIn à chaque ouverture de la fiche.
     let needsRefresh = false
+
     for (const pRow of storedPlatforms) {
-      const count = postCountByPlatform.get(pRow.id) ?? 0
-      if (count === 0) {
-        try {
-          const cred = await getPlatformCredential(supabase, userId, pRow.platform)
-          await syncCompetitorPlatform(supabase, pRow, cred)
-          needsRefresh = true
-        } catch (err) {
-          console.error("[competitor platform auto-sync] error:", err)
-        }
+      if (!isSyncDue(pRow)) continue
+      try {
+        const cred = await getPlatformCredential(supabase, userId, pRow.platform)
+        await syncCompetitorPlatform(supabase, pRow, cred)
+        needsRefresh = true
+      } catch (err) {
+        console.error("[competitor platform auto-sync] error:", err)
       }
     }
 
@@ -114,6 +113,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const platformById = new Map<string, any>(platforms.map((p) => [p.id, p]))
+
+    // Same Facebook post stored twice (numeric id + base64 story id): keep one,
+    // with the best metrics, the real text and a usable image.
+    const usableImage = (url: string | null) => (url && !url.includes("lookaside.fbsbx.com") ? url : null)
+    const merged = new Map<string, any>()
+    for (const p of posts) {
+      const key = `${p.platform_id}_${normalizeFacebookPostId(String(p.provider_post_id ?? p.id))}`
+      const current = merged.get(key)
+      const candidate = { ...p, media_url: usableImage(p.media_url) }
+      if (!current) {
+        merged.set(key, candidate)
+        continue
+      }
+      merged.set(key, {
+        ...current,
+        content: current.content && current.content !== "Publication officielle" ? current.content : candidate.content,
+        media_url: current.media_url ?? candidate.media_url,
+        post_url: current.post_url ?? candidate.post_url,
+        likes: Math.max(Number(current.likes ?? 0), Number(candidate.likes ?? 0)),
+        comments: Math.max(Number(current.comments ?? 0), Number(candidate.comments ?? 0)),
+        shares: Math.max(Number(current.shares ?? 0), Number(candidate.shares ?? 0)),
+      })
+    }
+    posts = [...merged.values()].sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)))
 
     // Available months: build from the earliest post or stat date (or at least 6 months back) up to the current month
     const postDates = posts.map((p: any) => p.published_at).filter(Boolean)
@@ -154,6 +177,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       lastError: p.last_error ?? null,
     })
 
+    // Rows by "platformId_month" for follower-growth lookups.
+    const statRowByKey = new Map<string, any>()
+    const rememberStat = (s: any) => statRowByKey.set(`${s.platform_id}_${s.month}`, s)
+
+    /**
+     * New followers for a month = followers at the end of the month (live count
+     * for the current month) minus the baseline: the previous month's last
+     * recorded count, else the count at the first sync of this month.
+     */
+    const followerGrowth = (s: any): Pick<CompetitorStat, "followersEnd" | "newFollowers" | "followersBasis"> => {
+      const platformRow = platformById.get(s.platform_id)
+      const isCurrent = s.month === currentMonthKey()
+      const end = isCurrent && Number(platformRow?.followers ?? 0) > 0
+        ? Number(platformRow.followers)
+        : Number(s.followers ?? 0)
+      const prev = statRowByKey.get(`${s.platform_id}_${prevMonthKey(s.month)}`)
+      const prevFollowers = Number(prev?.followers ?? 0)
+      const start = Number(s.followers_start ?? 0)
+      if (end > 0 && prevFollowers > 0) {
+        return { followersEnd: end, newFollowers: end - prevFollowers, followersBasis: "prev_month" }
+      }
+      if (end > 0 && start > 0) {
+        return { followersEnd: end, newFollowers: end - start, followersBasis: "tracking_start" }
+      }
+      return { followersEnd: end, newFollowers: null, followersBasis: null }
+    }
+
     const mapStat = (s: any): CompetitorStat => ({
       platform: platformById.get(s.platform_id)?.platform ?? s.platform,
       month: s.month,
@@ -164,28 +214,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       posts: Number(s.posts ?? 0),
       followers: Number(s.followers ?? 0),
       engagementRate: Number(s.engagement_rate ?? 0),
+      ...followerGrowth(s),
     })
 
     const mapPost = (p: any): CompetitorPost => {
       const platformRow = platformById.get(p.platform_id)
       const platformName = platformRow?.platform ?? p.platform
+      // Instagram only reports engagement through business_discovery. When that
+      // is unavailable (see last_error) the scraped HTML carries no counts, so
+      // the stored 0 means "unknown" rather than "nobody reacted".
+      const engagementAvailable = platformName !== "instagram" || !platformRow?.last_error
       let postUrl = p.post_url
       if (!postUrl) {
         const pId = p.provider_post_id ? String(p.provider_post_id) : ""
         if (pId.startsWith("http")) {
           postUrl = pId
         } else if (platformName === "facebook") {
-          const slug = platformRow?.handle || "BanqueCongolaiseDelHabitat"
+          const slug = usernameFromHandle(platformRow?.handle)
           if (pId.length >= 15) {
             postUrl = `https://www.facebook.com/photo.php?fbid=${pId}`
-          } else if (pId) {
+          } else if (pId && slug) {
             postUrl = `https://www.facebook.com/${slug}/posts/${pId}`
           } else {
-            postUrl = platformRow?.profile_url || `https://www.facebook.com/${slug}`
+            postUrl = platformRow?.profile_url || buildProfileUrl("facebook", slug)
           }
-        } else if (platformName === "linkedin") {
-          const slug = usernameFromHandle(platformRow?.handle) || "banque-congolaise-de-l-habitat"
-          postUrl = platformRow?.profile_url || `https://www.linkedin.com/company/${slug}`
         } else {
           postUrl = platformRow?.profile_url || null
         }
@@ -203,6 +255,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         shares: Number(p.shares ?? 0),
         views: Number(p.views ?? 0),
         engagementRate: Number(p.engagement_rate ?? 0),
+        engagementAvailable,
       }
     }
 
@@ -233,12 +286,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         shares: 0,
         posts: 0,
         followers: Number(platform.followers ?? 0),
+        followers_start: Number(platform.followers ?? 0),
         engagement_rate: 0,
         synced_at: new Date().toISOString(),
       }
-      const { error: snapshotError } = await supabase
+      let { error: snapshotError } = await supabase
         .from("competitor_stats")
         .upsert(snapshot, { onConflict: "platform_id,month" })
+      if (snapshotError && /followers_start/.test(snapshotError.message)) {
+        const { followers_start: _ignored, ...withoutStart } = snapshot
+        ;({ error: snapshotError } = await supabase
+          .from("competitor_stats")
+          .upsert(withoutStart, { onConflict: "platform_id,month" }))
+      }
       if (!snapshotError) stats.push(snapshot)
     }
 
@@ -270,6 +330,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           const existing = statsMap.get(key)
           if (!existing || (Number(existing.posts ?? 0) === 0 && agg.posts > 0)) {
             statsMap.set(key, {
+              ...existing,
               platform_id: p.id,
               platform: p.platform,
               month: agg.month,
@@ -278,7 +339,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
               comments: agg.comments,
               shares: agg.shares,
               posts: agg.posts,
-              followers: Number(p.followers ?? 0),
+              followers: Number(existing?.followers ?? 0),
               engagement_rate: agg.engagementRate,
             })
           }
@@ -287,6 +348,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const effectiveStats = [...statsMap.values()]
+    effectiveStats.forEach(rememberStat)
 
     const detail: CompetitorDetail = {
       competitor: {

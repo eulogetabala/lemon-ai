@@ -53,10 +53,9 @@ export function aggregatePostsByMonth(posts: PostMetric[], followers?: number): 
       let engagementRate = 0
       if (agg.impressions > 0) {
         engagementRate = round4((totalInteractions / agg.impressions) * 100)
-      } else if (followers && followers > 0) {
-        engagementRate = round4((totalInteractions / followers) * 100)
-      } else if (agg.posts > 0) {
-        engagementRate = round4((totalInteractions / agg.posts) * 0.5)
+      } else if (followers && followers > 0 && agg.posts > 0) {
+        // Average engagement per post, relative to the audience size.
+        engagementRate = round4((totalInteractions / agg.posts / followers) * 100)
       }
       return { month, ...agg, engagementRate }
     })
@@ -102,7 +101,7 @@ export function usernameFromHandle(handle?: string | null): string {
     }
   }
 
-  return value.replace(/^@/, "").replace(/\/$/, "")
+  return value.replace(/^@/, "").replace(/^\/+/, "").replace(/\/+$/, "")
 }
 
 /**

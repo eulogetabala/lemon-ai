@@ -111,6 +111,37 @@ async function exchangeFacebookLongLivedToken(shortLivedToken: string) {
   }
 }
 
+/**
+ * Instagram Login (`api.instagram.com`) returns a token valid ~1 hour, with no
+ * refresh token. It must be exchanged for a long-lived one (~60 days), then
+ * refreshed before expiry — otherwise the channel silently dies the same day.
+ */
+async function instagramLongLivedToken(url: string) {
+  const response = await fetch(url, { headers: { Accept: "application/json" } })
+  const data = await response.json().catch(() => null)
+  if (!response.ok || data?.error || !data?.access_token) {
+    throw new Error(`Instagram token ${response.status}: ${data?.error?.message ?? "échange impossible"}`)
+  }
+  const seconds = Number(data.expires_in)
+  return {
+    accessToken: data.access_token as string,
+    expiresAt: seconds > 0 ? new Date(Date.now() + seconds * 1000).toISOString() : null,
+  }
+}
+
+function exchangeInstagramLongLivedToken(shortLivedToken: string) {
+  const params = new URLSearchParams({
+    grant_type: "ig_exchange_token",
+    client_secret: getConfig(ChannelTypeEnum.INSTAGRAM).clientSecret,
+    access_token: shortLivedToken,
+  })
+  return instagramLongLivedToken(`https://graph.instagram.com/access_token?${params.toString()}`)
+}
+
+function refreshInstagramLongLivedToken(longLivedToken: string) {
+  const params = new URLSearchParams({ grant_type: "ig_refresh_token", access_token: longLivedToken })
+  return instagramLongLivedToken(`https://graph.instagram.com/refresh_access_token?${params.toString()}`)
+}
 
 function createProvider(type:ChannelTypeEnum,opts: { pkce?: boolean} = {}): OAuthProvider {
    return {
@@ -167,6 +198,21 @@ function createProvider(type:ChannelTypeEnum,opts: { pkce?: boolean} = {}): OAut
          }
        }
 
+       // Instagram Login: upgrade the 1h token to a 60-day one. It has no
+       // refresh token — the long-lived token itself is what gets refreshed.
+       if (type === ChannelTypeEnum.INSTAGRAM && accessToken && !getConfig(type).tokenUrl.includes("graph.facebook.com")) {
+         try {
+           const longLived = await exchangeInstagramLongLivedToken(accessToken)
+           accessToken = longLived.accessToken
+           expiresAt = longLived.expiresAt
+           return { accessToken, refreshToken: accessToken, expiresAt }
+         } catch (err) {
+           console.warn("[instagram] long-lived token exchange failed, keeping short-lived token", err)
+           // A short-lived token without expiry would look valid forever: record its ~1h lifetime.
+           expiresAt = expiresAt ?? new Date(Date.now() + 55 * 60 * 1000).toISOString()
+         }
+       }
+
        return {
         accessToken,
         refreshToken: data.refresh_token ?? null,
@@ -176,6 +222,10 @@ function createProvider(type:ChannelTypeEnum,opts: { pkce?: boolean} = {}): OAut
     },
     refreshToken: async ({ refreshToken, redirectUri }) => {
       const config = getConfig(type);
+      if (type === ChannelTypeEnum.INSTAGRAM && !config.tokenUrl.includes("graph.facebook.com")) {
+        const refreshed = await refreshInstagramLongLivedToken(refreshToken)
+        return { accessToken: refreshed.accessToken, refreshToken: refreshed.accessToken, expiresAt: refreshed.expiresAt }
+      }
       const params = new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
@@ -274,8 +324,36 @@ function createProvider(type:ChannelTypeEnum,opts: { pkce?: boolean} = {}): OAut
           )
         }
 
-        // Prefer the first page that has a usable page access token.
-        const page = pages.find((p) => p?.access_token) ?? pages[0]
+        // Instagram Business Discovery only works from a Facebook Page token whose
+        // Page has an Instagram Business account linked. Probe that separately so a
+        // missing instagram_basic scope can never break the Facebook connection.
+        type LinkedPage = {
+          id?: string
+          access_token?: string
+          instagram_business_account?: { id?: string }
+        }
+        let linkedInstagramPageId: string | null = null
+        try {
+          const linkedResponse = await fetch(
+            `https://graph.facebook.com/v19.0/me/accounts?fields=id,access_token,instagram_business_account{id,username}&limit=100&access_token=${encodeURIComponent(accessToken)}`,
+            { headers: { Accept: "application/json" } },
+          )
+          if (linkedResponse.ok) {
+            const linkedData = await linkedResponse.json().catch(() => null)
+            const linkedPages: LinkedPage[] = Array.isArray(linkedData?.data) ? linkedData.data : []
+            linkedInstagramPageId =
+              linkedPages.find((p) => p?.access_token && p?.instagram_business_account?.id)?.id ??
+              null
+          }
+        } catch {
+          // Best effort: the connection still works, only Instagram stats stay limited.
+        }
+
+        // Prefer the Page linked to Instagram, otherwise the first with a usable token.
+        const page =
+          (linkedInstagramPageId ? pages.find((p) => p.id === linkedInstagramPageId) : undefined) ??
+          pages.find((p) => p?.access_token) ??
+          pages[0]
         if (!page?.id || !page?.access_token) {
           throw new Error(
             "La Page Facebook n'a pas renvoyé de jeton d'accès. Vérifiez les permissions pages_show_list / pages_manage_posts dans Meta.",
@@ -451,7 +529,7 @@ export async function refreshOauthToken(
   refreshToken:string,
   redirectUri:string,
 ){
-  console.log("refreshing token", type, refreshToken, redirectUri)
+  console.log("refreshing token", type)
   const provider = getOAuthProvider(type);
   if(!provider.refreshToken){
     throw new Error('Refresh token not supported for this provider');

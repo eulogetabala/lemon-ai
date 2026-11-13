@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { Spinner } from "../ui/spinner"
-import { useSubscription } from "@clerk/nextjs/experimental"
+import { useUser } from "@clerk/nextjs"
+import { canUseAI as planAllowsAI, resolvePlanFromMetadata } from "@/lib/plan-limits"
 import Link from "next/link"
 
 const QUICK_ACTIONS = [
@@ -26,12 +27,10 @@ interface AIAssistantProps {
 
 export function AIAssistant({ className, content, channelId, onGenerate }: AIAssistantProps) {
   const [prompt, setPrompt] = React.useState("")
-    const { data: subscription, isLoading } = useSubscription()
-  const canUseAI =
-    !!subscription?.subscriptionItems?.some((item) => {
-      const planSlug = item.plan.slug
-      return planSlug === "pro" || planSlug === "premium"
-    })
+  const { user, isLoaded } = useUser()
+  const planId = resolvePlanFromMetadata(user?.publicMetadata as any)
+  const canUseAI = planAllowsAI(planId)
+  const isLoading = !isLoaded
 
   const generateMutation = useMutation({
     mutationFn: async ({ action, promptText }: { action: string; promptText?: string }) => {

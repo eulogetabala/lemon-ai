@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { encrypt } from "@/lib/encryption"
 import { getSupabaseServerClient } from "@/lib/supabase-server"
-import { checkChannelConnectLimit, getPlanFromClerkHas } from "@/lib/plan-limits"
-import { auth } from "@clerk/nextjs/server"
+import { getWorkspaceFromRequest } from "@/lib/request-workspace"
+import { checkChannelConnectLimit, resolvePlanForUserId } from "@/lib/plan-limits-server"
 import {
   FACEBOOK_PAGE_SELECT_COOKIE,
   decodeFacebookPageSelectSession,
@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const workspace = await getWorkspaceFromRequest(request, supabase, userId, session.workspaceId ?? null)
+
     const pages = await listFacebookPages(session.userAccessToken)
     const page = pages.find((p) => p.id === pageId)
 
@@ -48,17 +50,17 @@ export async function POST(request: NextRequest) {
       .from("user_channels")
       .select("id")
       .eq("user_id", session.userId)
+      .eq("workspace_id", workspace.id)
       .eq("provider_account_id", page.id)
       .eq("is_connected", true)
       .maybeSingle()
 
     if (!existingPage) {
-      const { has } = await auth()
-      const planId = getPlanFromClerkHas(has)
-      const limitCheck = await checkChannelConnectLimit(supabase, session.userId, planId)
+      const planId = await resolvePlanForUserId(session.userId)
+      const limitCheck = await checkChannelConnectLimit(supabase, session.userId, planId, workspace.id)
       if (!limitCheck.allowed) {
         return NextResponse.json(
-          { error: limitCheck.message || "Limite de 3 canaux connectés atteinte pour le forfait Gratuit. Passez à Pro pour connecter des canaux illimités." },
+          { error: limitCheck.message || "Limite de canaux atteinte pour votre forfait. Passez au forfait Pro." },
           { status: 403 },
         )
       }
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
       token_expires_at: session.tokenExpiresAt,
       is_connected: true,
       is_active: true,
+      workspace_id: workspace.id,
     }
 
     const { error } = await supabase

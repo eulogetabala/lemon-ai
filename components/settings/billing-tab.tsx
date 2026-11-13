@@ -52,6 +52,25 @@ export default function BillingTab() {
   const planId: PlanId = getPlanFromClerkHas(has, user?.publicMetadata);
   const planConfig = PLAN_CONFIGS[planId] || PLAN_CONFIGS.free;
 
+  // Real data: Fetch billing info & payments
+  const { data: billingData } = useQuery({
+    queryKey: ["billing-payments"],
+    queryFn: async () => {
+      const res = await fetch("/api/billing/payments");
+      return res.json();
+    },
+  });
+
+  // Real data: Fetch workspaces count
+  const { data: workspacesData } = useQuery({
+    queryKey: ["workspaces-count"],
+    queryFn: async () => {
+      const res = await fetch("/api/workspaces");
+      return res.json();
+    },
+  });
+  const workspacesCount = Math.max(1, (workspacesData?.workspaces || []).length);
+
   // Real data: Fetch connected channels
   const { data: channelsData } = useQuery({
     queryKey: ["channels"],
@@ -92,15 +111,49 @@ export default function BillingTab() {
     }).length;
   }, [postsData]);
 
-  // Invoices list for this workspace (real invoice tracking)
+  // Invoices list for this user (real Sebpay payment tracking)
   const invoices: InvoiceItem[] = useMemo(() => {
+    const dbPayments: any[] = billingData?.payments || [];
+    if (dbPayments.length > 0) {
+      return dbPayments.map((p) => {
+        const d = new Date(p.paid_at || p.created_at);
+        const dateStr = d.toLocaleDateString("fr-FR", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        });
+        const periodStr = `${p.interval === "yearly" ? "Annuel" : "Mensuel"} · ${d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`;
+        const planObj = PLAN_CONFIGS[p.plan_id as PlanId];
+        const statusLabel: InvoiceItem["status"] =
+          p.status === "approved"
+            ? "Payée"
+            : p.status === "pending"
+            ? "En attente"
+            : "Annulée";
+
+        return {
+          id: p.id,
+          invoiceNumber:
+            p.transaction_id ||
+            `KP-${d.getFullYear()}-${p.id.slice(0, 6).toUpperCase()}`,
+          date: dateStr,
+          period: periodStr,
+          planName: `Abonnement ${planObj?.name || p.plan_id}`,
+          amountFCFA: p.amount_fcfa,
+          status: statusLabel,
+          paymentMethod: p.checkout_session_id
+            ? "Sebpay (Mobile Money)"
+            : "Paiement en ligne",
+        };
+      });
+    }
+
     const now = new Date();
     const monthNames = [
       "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
     ];
     const currentMonthName = monthNames[now.getMonth()];
-    const prevMonthName = monthNames[(now.getMonth() - 1 + 12) % 12];
     const year = now.getFullYear();
 
     if (planId === "free") {
@@ -128,20 +181,10 @@ export default function BillingTab() {
         planName: `Abonnement ${planConfig.name}`,
         amountFCFA: price,
         status: "Payée",
-        paymentMethod: "Carte bancaire (•••• 4242)",
-      },
-      {
-        id: "inv-paid-prev",
-        invoiceNumber: `KP-${year}-00${now.getMonth()}`,
-        date: `01 ${prevMonthName} ${year}`,
-        period: `${prevMonthName} ${year}`,
-        planName: `Abonnement ${planConfig.name}`,
-        amountFCFA: price,
-        status: "Payée",
-        paymentMethod: "Carte bancaire (•••• 4242)",
+        paymentMethod: "Abonnement KORAPULSE",
       },
     ];
-  }, [planId, planConfig]);
+  }, [billingData, planId, planConfig]);
 
   // Direct PDF download using jsPDF
   const handleDownloadInvoicePDF = async (inv: InvoiceItem) => {
@@ -318,7 +361,11 @@ export default function BillingTab() {
               <p className="text-xs text-slate-500 mt-0.5">
                 {planConfig.monthlyPriceFCFA === 0
                   ? "Offre Gratuite · Évaluation permanente sans carte bancaire"
-                  : `${planConfig.monthlyPriceFCFA?.toLocaleString("fr-FR")} FCFA / mois · Renouvellement automatique`}
+                  : `${planConfig.monthlyPriceFCFA?.toLocaleString("fr-FR")} FCFA / mois · ${
+                      billingData?.planExpiresAt
+                        ? `Actif jusqu'au ${new Date(billingData.planExpiresAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}`
+                        : "Abonnement actif"
+                    }`}
               </p>
             </div>
           </div>
@@ -406,7 +453,7 @@ export default function BillingTab() {
             </div>
             <div className="mt-3">
               <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-black text-slate-900">1</span>
+                <span className="text-2xl font-black text-slate-900">{workspacesCount}</span>
                 <span className="text-xs font-bold text-slate-500">
                   {planConfig.maxWorkspaces === Infinity
                     ? "Illimités"
@@ -420,7 +467,7 @@ export default function BillingTab() {
                     width: `${
                       planConfig.maxWorkspaces === Infinity
                         ? 20
-                        : Math.min(100, (1 / planConfig.maxWorkspaces) * 100)
+                        : Math.min(100, (workspacesCount / planConfig.maxWorkspaces) * 100)
                     }%`,
                   }}
                 />

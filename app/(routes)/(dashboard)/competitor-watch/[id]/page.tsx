@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
+import { startFacebookReconnect } from "@/lib/facebook-reconnect";
+import { FacebookReconnectPicker } from "@/components/competitor/facebook-reconnect-picker";
 import {
   ArrowLeft,
   CalendarDays,
@@ -28,6 +31,9 @@ import {
   FileText,
   Presentation,
   RotateCcw,
+  ChevronDown,
+  BadgeCheck,
+  Tag,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -48,7 +54,24 @@ import {
 } from "@/components/ui/dialog";
 import { stripRichTextFormatting } from "@/lib/rich-text";
 import { buildProfileUrl, usernameFromHandle } from "@/lib/competitor-stats";
-import { PLATFORM_META, formatNumber, formatMonth, pctChange, timeAgo } from "../_data";
+import { formatNumber, formatMonth, pctChange, timeAgo } from "../_data";
+import {
+  CompetitorHeader,
+  CountUp,
+  FeaturedPost,
+  MonthSummary,
+  PulseCard,
+  SourceNotice,
+  SyncNote,
+  PLATFORM_LABEL,
+  PostCard,
+  engagementKnown,
+  fr,
+  interactionsOf,
+  pct,
+  signed,
+  type Metric,
+} from "./_parts";
 import type {
   CompetitorDetail,
   CompetitorPost,
@@ -199,6 +222,14 @@ function MiniCalendar({
   );
 }
 
+/** Used as a tie-break when several channels have the same number of posts. */
+const DEFAULT_CHANNEL_ORDER = ["instagram", "linkedin", "facebook", "tiktok", "youtube", "twitter", "threads"];
+
+const channelRank = (platform: string) => {
+  const index = DEFAULT_CHANNEL_ORDER.indexOf(platform);
+  return index === -1 ? DEFAULT_CHANNEL_ORDER.length : index;
+};
+
 export default function CompetitorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -206,8 +237,9 @@ export default function CompetitorDetailPage() {
   const [detail, setDetail] = useState<CompetitorDetail | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
-  const [viewFilter, setViewFilter] = useState<"all" | "month">("all");
+  const [platformChoice, setPlatformChoice] = useState<{ id: string; platform: string } | null>(null);
+  const [viewFilter, setViewFilter] = useState<"all" | "month">("month");
+  const [sortBy, setSortBy] = useState<"recent" | "engaging">("recent");
   const [currentPage, setCurrentPage] = useState(1);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -216,7 +248,7 @@ export default function CompetitorDetailPage() {
   const [exportMenu, setExportMenu] = useState(false);
   const [selectedPostDetail, setSelectedPostDetail] = useState<CompetitorPost | null>(null);
 
-  const POSTS_PER_PAGE = 6;
+  const POSTS_PER_PAGE = 9;
 
   useEffect(() => {
     let cancelled = false;
@@ -253,6 +285,36 @@ export default function CompetitorDetailPage() {
   const currentMonth = selectedMonth ?? detail?.month ?? "";
   const platforms = detail?.competitor?.platforms || [];
 
+  // Land on a single channel: the same publication cross-posted on several
+  // networks would otherwise appear several times in the flux. The user can
+  // still switch to another channel or to "Tous" from the tabs.
+  const defaultPlatform = useMemo(() => {
+    const countByChannel = (list: CompetitorPost[]) => {
+      const counts = new Map<string, number>();
+      for (const post of list) counts.set(post.platform, (counts.get(post.platform) ?? 0) + 1);
+      return counts;
+    };
+    // Prefer a channel that actually published on the month being viewed, so the
+    // landing view is never empty when another channel has posts.
+    const monthCounts = countByChannel(posts);
+    const allCounts = countByChannel(allPosts);
+    return [...platforms].sort((a, b) => {
+      const monthDelta = (monthCounts.get(b.platform) ?? 0) - (monthCounts.get(a.platform) ?? 0);
+      if (monthDelta !== 0) return monthDelta;
+      const allDelta = (allCounts.get(b.platform) ?? 0) - (allCounts.get(a.platform) ?? 0);
+      if (allDelta !== 0) return allDelta;
+      return channelRank(a.platform) - channelRank(b.platform);
+    })[0]?.platform;
+  }, [platforms, posts, allPosts]);
+
+  // A manual choice only counts while that channel still exists for this
+  // competitor, so the tab strip always has exactly one active tab.
+  const platformOverride =
+    platformChoice && platformChoice.id === id && platforms.some((p) => p.platform === platformChoice.platform)
+      ? platformChoice.platform
+      : null;
+  const selectedPlatform = platformOverride ?? defaultPlatform ?? "all";
+
   const currentPlatforms = useMemo(() => {
     if (selectedPlatform === "all") return platforms;
     return platforms.filter((p) => p.platform === selectedPlatform);
@@ -278,18 +340,27 @@ export default function CompetitorDetailPage() {
         return d.getFullYear() === y && d.getMonth() === m - 1 && d.getDate() === selectedDay;
       });
     }
+    if (sortBy === "engaging") {
+      list = [...list].sort((a, b) => interactionsOf(b) - interactionsOf(a));
+    }
     return list;
-  }, [currentAllPosts, currentMonthPosts, viewFilter, selectedDay, currentMonth]);
+  }, [currentAllPosts, currentMonthPosts, viewFilter, selectedDay, currentMonth, sortBy]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedPlatform, viewFilter, selectedDay, selectedMonth]);
+  }, [selectedPlatform, viewFilter, selectedDay, selectedMonth, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(displayedPosts.length / POSTS_PER_PAGE));
   const paginatedPosts = useMemo(() => {
     const start = (currentPage - 1) * POSTS_PER_PAGE;
     return displayedPosts.slice(start, start + POSTS_PER_PAGE);
   }, [displayedPosts, currentPage]);
+
+  const handleReconnectFacebook = () =>
+    startFacebookReconnect({
+      returnTo: window.location.pathname,
+      onError: (message) => toast.error(message),
+    });
 
   const handleSync = async () => {
     if (isSyncing) return;
@@ -374,826 +445,522 @@ export default function CompetitorDetailPage() {
 
   if (isLoading && !detail) {
     return (
-      <div className="flex h-72 w-full flex-col items-center justify-center gap-3">
+      <div className="flex h-72 w-full flex-col items-center justify-center gap-3" role="status">
         <RefreshCw className="size-6 animate-spin text-[#FF5722]" />
-        <span className="text-xs font-semibold text-slate-500">
-          Chargement de l&apos;analyse concurrentielle...
-        </span>
+        <span className="text-sm font-medium text-slate-500">Chargement de la fiche concurrent…</span>
       </div>
     );
   }
 
   if (!detail) {
     return (
-      <div className="flex h-72 w-full flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-8 text-center">
-        <p className="text-sm font-bold text-slate-800">Concurrent introuvable.</p>
+      <div className="flex h-72 w-full flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200 bg-white p-8 text-center">
+        <p className="text-base font-bold text-slate-900">Ce concurrent n&apos;existe plus ou a été supprimé.</p>
         <Link
           href="/competitor-watch"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-black"
         >
-          <ArrowLeft className="size-3.5" />
-          Retour à la veille
+          <ArrowLeft className="size-4" />
+          Retour à la veille concurrentielle
         </Link>
       </div>
     );
   }
 
   const { competitor, availableMonths, stats, prevStats } = detail;
+  const scope = <T extends { platform: string }>(rows: T[]) =>
+    selectedPlatform === "all" ? rows : rows.filter((r) => r.platform === selectedPlatform);
 
   const totalFollowers = competitor.platforms.reduce((sum, p) => sum + p.followers, 0);
   const displayedFollowers = currentPlatforms.reduce((sum, p) => sum + p.followers, 0);
-
-  const currentStats =
-    selectedPlatform === "all"
-      ? stats
-      : stats.filter((s) => s.platform === selectedPlatform);
-
-  // Month-specific sums for active platform view
-  const monthLikes = currentStats.reduce((acc, s) => acc + s.likes, 0);
-  const monthComments = currentStats.reduce((acc, s) => acc + s.comments, 0);
-  const monthShares = currentStats.reduce((acc, s) => acc + s.shares, 0);
-  const monthInteractions = monthLikes + monthComments + monthShares;
-  const monthEngagement =
-    currentStats.length > 0
-      ? currentStats.reduce((acc, s) => acc + s.engagementRate, 0) / currentStats.length
-      : displayedFollowers > 0
-      ? (monthInteractions / displayedFollowers) * 100
-      : 0;
-
-  // Global sums across tracked posts for active platform view
-  const globalLikes = currentAllPosts.reduce((acc, p) => acc + p.likes, 0);
-  const globalComments = currentAllPosts.reduce((acc, p) => acc + p.comments, 0);
-  const globalShares = currentAllPosts.reduce((acc, p) => acc + p.shares, 0);
-  const globalInteractions = globalLikes + globalComments + globalShares;
-  const globalEngagement =
-    displayedFollowers > 0 && globalInteractions > 0
-      ? (globalInteractions / displayedFollowers) * 100
-      : monthEngagement;
-
+  const followersByPlatform = new Map(competitor.platforms.map((p) => [p.platform, p.followers]));
   const activePlatformObj = competitor.platforms.find((p) => p.platform === selectedPlatform);
+  const isLiveMonth = currentMonth === detail.month && availableMonths[0] === currentMonth;
+
+  // ── Month metrics (scoped to the selected channel) ──
+  const sumPosts = (list: CompetitorPost[]) => ({
+    likes: list.reduce((a, p) => a + p.likes, 0),
+    comments: list.reduce((a, p) => a + p.comments, 0),
+    shares: list.reduce((a, p) => a + p.shares, 0),
+  });
+  const month = sumPosts(currentMonthPosts.filter(engagementKnown));
+  const monthInteractions = month.likes + month.comments + month.shares;
+  const monthPostCount = currentMonthPosts.length;
+  // Instagram's public page carries no like/comment counts: those posts are
+  // flagged as unavailable so a missing figure is never rendered as a real 0.
+  const monthEngagementKnown = currentMonthPosts.some(engagementKnown);
+  const monthReadableCount = currentMonthPosts.filter(engagementKnown).length;
+  const unreadableLabel = Array.from(
+    new Set(currentMonthPosts.filter((p) => !engagementKnown(p)).map((p) => p.platform))
+  )
+    .map((p) => PLATFORM_LABEL[p] ?? p)
+    .join(" et ");
+  const noEngagementDetail = unreadableLabel
+    ? `Non communiqué par ${unreadableLabel}`
+    : "Non communiqué";
+
+  const prevScoped = scope(prevStats);
+  const prevPostCount = prevScoped.reduce((a, s) => a + s.posts, 0);
+  const prevInteractions = prevScoped.reduce((a, s) => a + s.likes + s.comments + s.shares, 0);
+
+  // Engagement = average interactions per post / audience of that channel.
+  const postEngagement = (p: CompetitorPost) => {
+    const f = followersByPlatform.get(p.platform) ?? 0;
+    return f > 0 ? (interactionsOf(p) / f) * 100 : null;
+  };
+  const engagementOf = (posts: number, interactions: number) =>
+    posts > 0 && displayedFollowers > 0 ? (interactions / posts / displayedFollowers) * 100 : null;
+  const monthEngagement = engagementOf(monthReadableCount, monthInteractions);
+  const prevEngagement = engagementOf(prevPostCount, prevInteractions);
+
+  const scopedStats = scope(stats);
+  const growthRows = scopedStats.filter((s) => typeof s.newFollowers === "number");
+  const newFollowers = growthRows.length > 0 ? growthRows.reduce((a, s) => a + (s.newFollowers ?? 0), 0) : null;
+  const sinceTrackingStart = growthRows.some((s) => s.followersBasis === "tracking_start");
+  const prevGrowthRows = prevScoped.filter((s) => typeof s.newFollowers === "number");
+  const prevNewFollowers = prevGrowthRows.length > 0 ? prevGrowthRows.reduce((a, s) => a + (s.newFollowers ?? 0), 0) : null;
+
+  const lastSync = competitor.platforms
+    .map((p) => p.syncedAt)
+    .filter(Boolean)
+    .sort()
+    .pop();
+  const updatedLabel = lastSync ? `mis à jour ${timeAgo(lastSync as string).toLowerCase()}` : null;
+
+  const monthName = formatMonth(currentMonth).split(" ")[0];
+  const trackingStart = currentPlatforms.map((p) => p.connectedAt).filter(Boolean).sort()[0] ?? competitor.connectedAt;
+  const trackingStartLabel = trackingStart
+    ? new Date(trackingStart).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+    : "";
+  const scopeName =
+    selectedPlatform === "all" ? competitor.name : `${competitor.name} sur ${PLATFORM_LABEL[selectedPlatform] ?? selectedPlatform}`;
+  const headline = (
+    <>
+      {isLiveMonth ? `Depuis le 1er ${monthName}, ` : `En ${monthName}, `}
+      <strong>{scopeName}</strong>{" "}
+      {newFollowers !== null && newFollowers !== 0 && (
+        <>
+          a {newFollowers > 0 ? "gagné" : "perdu"} <em><CountUp value={newFollowers} format={signed} /></em> abonnés
+          {sinceTrackingStart ? " depuis le début du suivi" : ""},{" "}
+        </>
+      )}
+      {monthPostCount > 0 ? (
+        <>
+          a publié <strong><CountUp value={monthPostCount} /> post{monthPostCount > 1 ? "s" : ""}</strong>
+          {monthEngagementKnown ? (
+            <>
+              {" "}et récolté <strong><CountUp value={monthInteractions} /></strong> interactions
+              {unreadableLabel ? ` (hors ${unreadableLabel})` : ""}.
+            </>
+          ) : (
+            <> — les interactions ne sont pas communiquées par {unreadableLabel || "ce réseau"}.</>
+          )}
+        </>
+      ) : (
+        <>n&apos;a rien publié pour l&apos;instant.</>
+      )}
+    </>
+  );
+
+  const metrics: Metric[] = [
+    {
+      label: "Abonnés",
+      value: displayedFollowers > 0 ? displayedFollowers : null,
+      detail: displayedFollowers > 0 ? "Total actuel" : "Audience non disponible",
+    },
+    {
+      label: `Nouveaux abonnés en ${monthName}`,
+      value: newFollowers,
+      format: signed,
+      delta:
+        newFollowers !== null && prevNewFollowers !== null && prevNewFollowers !== 0
+          ? { text: `${pctChange(newFollowers, prevNewFollowers) >= 0 ? "+" : ""}${pctChange(newFollowers, prevNewFollowers)} %`, positive: newFollowers >= prevNewFollowers }
+          : null,
+      detail:
+        newFollowers === null
+          ? "Calculé dès le prochain relevé"
+          : sinceTrackingStart
+            ? `Depuis le début du suivi (${trackingStartLabel})`
+            : "Depuis le 1er du mois",
+    },
+    {
+      label: "Publications",
+      value: monthPostCount,
+      delta: null,
+      detail: prevPostCount > 0 ? `${prevPostCount} le mois précédent` : undefined,
+    },
+    {
+      label: "J'aime",
+      value: monthEngagementKnown ? month.likes : null,
+      detail: !monthEngagementKnown
+        ? noEngagementDetail
+        : monthReadableCount > 0
+          ? `${fr(month.likes / monthReadableCount)} par post`
+          : undefined,
+    },
+    {
+      label: "Commentaires et partages",
+      value: monthEngagementKnown ? month.comments + month.shares : null,
+      detail: monthEngagementKnown
+        ? `${fr(month.comments)} com., ${fr(month.shares)} partages`
+        : noEngagementDetail,
+    },
+    {
+      label: "Taux d'engagement",
+      value: monthEngagementKnown ? monthEngagement : null,
+      format: (n: number) => pct(n),
+      delta:
+        monthEngagement !== null && prevEngagement !== null
+          ? {
+              text: `${monthEngagement >= prevEngagement ? "+" : "−"}${Math.abs(monthEngagement - prevEngagement).toFixed(2).replace(".", ",")}`,
+              positive: monthEngagement === prevEngagement ? null : monthEngagement > prevEngagement,
+            }
+          : null,
+      detail: monthEngagementKnown ? "Par post, rapporté aux abonnés" : noEngagementDetail,
+    },
+  ];
+
+  const rankablePosts = currentMonthPosts.filter(engagementKnown);
+  const topPost =
+    rankablePosts.length > 0
+      ? rankablePosts.reduce((best, p) => (interactionsOf(p) > interactionsOf(best) ? p : best))
+      : null;
+
+  const postUrlOf = (post: CompetitorPost) => {
+    const platformObj = competitor.platforms.find((p) => p.platform === post.platform);
+    return (
+      post.postUrl ||
+      (platformObj ? buildProfileUrl(platformObj.platform, platformObj.handle) || platformObj.profileUrl : null) ||
+      "#"
+    );
+  };
+  const inspire = (post: CompetitorPost) =>
+    router.push(`/schedule?content=${encodeURIComponent(stripRichTextFormatting(post.content).slice(0, 150))}`);
+
+  // ── Facts for the analysis dialog (all derived from collected posts) ──
+  const withMedia = currentAllPosts.filter((p) => p.mediaUrl).length;
+  const mediaShare = currentAllPosts.length > 0 ? Math.round((withMedia / currentAllPosts.length) * 100) : 0;
+  const rankableAllPosts = currentAllPosts.filter(engagementKnown);
+  const weekdayTotals = Array.from({ length: 7 }, () => ({ posts: 0, interactions: 0 }));
+  for (const p of rankableAllPosts) {
+    const w = weekdayTotals[new Date(p.publishedAt).getDay()];
+    w.posts += 1;
+    w.interactions += interactionsOf(p);
+  }
+  const bestWeekday = weekdayTotals
+    .map((w, i) => ({ i, avg: w.posts > 0 ? w.interactions / w.posts : 0 }))
+    .sort((a, b) => b.avg - a.avg)[0];
+  const WEEKDAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  const globalLikes = rankableAllPosts.reduce((acc, p) => acc + p.likes, 0);
+  const globalComments = rankableAllPosts.reduce((acc, p) => acc + p.comments, 0);
+  const globalShares = rankableAllPosts.reduce((acc, p) => acc + p.shares, 0);
+  const globalInteractions = globalLikes + globalComments + globalShares;
+  const globalEngagementKnown = rankableAllPosts.length > 0;
+
+  const btn =
+    "inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors hover:bg-slate-50 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5722]";
 
   return (
-    <div className="flex flex-col gap-6 pb-14">
-      {/* ── 1. Top Navigation & Brand Header ── */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/competitor-watch"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900"
-          >
-            <ArrowLeft className="size-3.5" />
-            Retour à la veille concurrentielle
-          </Link>
+    <div className="mx-auto flex w-full max-w-[1180px] flex-col pb-14">
+      <Suspense fallback={null}>
+        <FacebookReconnectPicker onSelected={handleSync} />
+      </Suspense>
 
-          <div className="flex items-center gap-2.5">
+      {/* ── Top bar ── */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href="/competitor-watch"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+        >
+          <ChevronLeft className="size-4" />
+          Veille concurrentielle
+        </Link>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={handleSync} disabled={isSyncing} className={btn}>
+            <RefreshCw className={cn("size-3.5 text-slate-400", isSyncing && "animate-spin")} />
+            {isSyncing ? "Actualisation…" : "Actualiser"}
+          </button>
+
+          <div className="relative">
             <button
               type="button"
-              onClick={() => setIsAnalysisModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-xs font-bold text-[#FF5722] shadow-xs transition-all hover:bg-[#FF5722] hover:text-white cursor-pointer"
+              onClick={() => setExportMenu((v) => !v)}
+              disabled={isExporting}
+              aria-expanded={exportMenu}
+              className={btn}
             >
-              <Layers className="size-3.5" />
-              <span>Analyse &amp; Recommandations</span>
+              <FileDown className={cn("size-3.5 text-slate-400", isExporting && "animate-pulse")} />
+              {isExporting ? "Génération…" : "Rapport"}
+              <ChevronDown className={cn("size-3 transition-transform", exportMenu && "rotate-180")} />
             </button>
 
-            {/* Export dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setExportMenu((v) => !v)}
-                disabled={isExporting}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 shadow-sm transition-all hover:border-[#FF5722] hover:text-[#FF5722] disabled:opacity-60 cursor-pointer"
-              >
-                <FileDown className={cn("size-3.5", isExporting && "animate-pulse")} />
-                {isExporting ? "Génération en cours..." : "Télécharger le rapport"}
-                <ChevronRight className={cn("size-3 transition-transform", exportMenu && "rotate-90")} />
-              </button>
-
-              {exportMenu && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setExportMenu(false)}
-                  />
-                  <div className="absolute right-0 top-full z-50 mt-1.5 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl">
-                  {/* Active channel section if one is selected */}
-                  {selectedPlatform !== "all" && activePlatformObj && (
-                    <div className="mb-2 pb-2.5 border-b border-slate-100">
-                      <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#FF5722]">
-                        Canal actif : {activePlatformObj.platform.toUpperCase()}
-                      </div>
-                      <div className="mt-1 flex items-center gap-1.5">
+            {exportMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setExportMenu(false)} />
+                <div className="absolute right-0 top-full z-50 mt-1.5 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <p className="px-2 py-1 text-xs font-semibold text-slate-400">Rapport de {formatMonth(currentMonth)}</p>
+                  {[{ key: "all", label: "Tous les réseaux" }, ...competitor.platforms.map((p) => ({ key: p.platform, label: PLATFORM_LABEL[p.platform] ?? p.platform }))].map((row) => (
+                    <div key={row.key} className="flex items-center justify-between rounded-xl px-2 py-1.5 hover:bg-slate-50">
+                      <span className="text-sm font-semibold text-slate-800">{row.label}</span>
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => handleExport("pdf", selectedPlatform)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-bold text-[#FF5722] hover:bg-[#FF5722] hover:text-white transition-colors"
+                          onClick={() => handleExport("pdf", row.key)}
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-700 hover:border-[#FF5722] hover:text-[#FF5722]"
                         >
-                          <FileText className="size-3" />
                           PDF
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleExport("pptx", selectedPlatform)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-bold text-[#FF5722] hover:bg-[#FF5722] hover:text-white transition-colors"
+                          onClick={() => handleExport("pptx", row.key)}
+                          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-700 hover:border-[#FF5722] hover:text-[#FF5722]"
                         >
-                          <Presentation className="size-3" />
                           PPTX
                         </button>
                       </div>
                     </div>
-                  )}
-
-                  {/* Individual channels list */}
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Rapports individuels par canal
-                  </div>
-                  <div className="mt-1 flex flex-col gap-1">
-                    {competitor.platforms.map((p) => (
-                      <div
-                        key={p.platform}
-                        className="flex items-center justify-between rounded-xl px-2 py-1.5 hover:bg-slate-50 transition-colors"
-                      >
-                        <span className="text-xs font-bold text-slate-800 capitalize">
-                          {p.platform}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleExport("pdf", p.platform)}
-                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:border-[#FF5722] hover:text-[#FF5722] transition-colors"
-                            title={`Télécharger PDF ${p.platform}`}
-                          >
-                            PDF
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleExport("pptx", p.platform)}
-                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:border-[#FF5722] hover:text-[#FF5722] transition-colors"
-                            title={`Télécharger PPTX ${p.platform}`}
-                          >
-                            PPTX
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Consolidated report */}
-                  <div className="mt-2.5 pt-2.5 border-t border-slate-100">
-                    <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Rapport consolidé global
-                    </div>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleExport("pdf", "all")}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-900 hover:text-white transition-colors"
-                      >
-                        <FileText className="size-3" />
-                        Tous (PDF)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleExport("pptx", "all")}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-900 hover:text-white transition-colors"
-                      >
-                        <Presentation className="size-3" />
-                        Tous (PPTX)
-                      </button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
-            >
-              <RefreshCw className={cn("size-3.5 text-white", isSyncing && "animate-spin")} />
-              {isSyncing ? "Synchronisation en cours..." : "Actualiser les données"}
-            </button>
-          </div>
-        </div>
-
-        {/* Brand Banner */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#0A0D14] text-white font-black text-xl shadow-md">
-              {competitor.name.slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                  {competitor.name}
-                </h1>
-                <span className="rounded-full bg-orange-50 border border-orange-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#FF5722]">
-                  Veille active
-                </span>
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                {competitor.industry && (
-                  <span className="font-semibold text-slate-700">{competitor.industry}</span>
-                )}
-                <span>•</span>
-                <span>{competitor.platforms.length} canal/canaux sous surveillance</span>
-              </div>
-            </div>
+            )}
           </div>
 
-          {competitor.website && (
-            <a
-              href={competitor.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-            >
-              <Globe className="size-3.5 text-slate-500" />
-              Site web
-            </a>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsAnalysisModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-bold text-white transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5722]"
+          >
+            Analyse avancée
+          </button>
         </div>
       </div>
 
-      {/* ── 2. Système de Tabulation Multi-Réseaux (Facebook, LinkedIn, Instagram...) ── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Onglet Vue Cumulée */}
+      {/* ── Identity + channel switcher ── */}
+      <div className="mb-6">
+        <CompetitorHeader
+          name={competitor.name}
+          verified={competitor.verified}
+          avatar={(activePlatformObj ?? competitor.platforms.find((p) => p.profileImage))?.profileImage ?? null}
+          subtitle={
+            <>
+              {competitor.industry && <span>{competitor.industry}</span>}
+              {activePlatformObj ? (
+                <a
+                  href={buildProfileUrl(activePlatformObj.platform, activePlatformObj.handle) || activePlatformObj.profileUrl || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-slate-900"
+                >
+                  @{usernameFromHandle(activePlatformObj.handle)}
+                </a>
+              ) : (
+                <span>
+                  {competitor.platforms.length} canal{competitor.platforms.length > 1 ? "aux" : ""} suivi{competitor.platforms.length > 1 ? "s" : ""}
+                </span>
+              )}
+              {competitor.website && (
+                <a href={competitor.website} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900">
+                  {competitor.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                </a>
+              )}
+            </>
+          }
+          tabs={[
+            { key: "all", label: "Tous", followers: totalFollowers },
+            ...competitor.platforms.map((p) => ({ key: p.platform as string, label: PLATFORM_LABEL[p.platform] ?? p.platform, followers: p.followers })),
+          ]}
+          selected={selectedPlatform}
+          onSelect={(key) => {
+            setPlatformChoice({ id, platform: key });
+            setSelectedDay(null);
+          }}
+        />
+      </div>
+
+      {/* ── Month pulse + summary ── */}
+      <div className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          <PulseCard
+            month={currentMonth}
+            posts={currentMonthPosts}
+            availableMonths={availableMonths}
+            onMonthChange={(m) => {
+              setSelectedMonth(m);
+              setSelectedDay(null);
+              setViewFilter("month");
+            }}
+            selectedDay={selectedDay}
+            onSelectDay={(d) => {
+              setSelectedDay(d);
+              if (d !== null) {
+                setViewFilter("month");
+                document.getElementById("flux")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
+            headline={headline}
+            updatedLabel={updatedLabel}
+            live={isLiveMonth}
+            animationKey={`${currentMonth}-${selectedPlatform}`}
+          />
+        </div>
+        <div className="lg:col-span-4">
+          <MonthSummary
+            title={`Bilan de ${formatMonth(currentMonth)}`}
+            metrics={metrics}
+            animationKey={`${currentMonth}-${selectedPlatform}`}
+          />
+        </div>
+      </div>
+
+      {/* ── Meilleure publication du mois ── */}
+      {topPost && (
+        <section className="mb-10" aria-labelledby="top-post-title">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 id="top-post-title" className="text-[15px] font-bold text-slate-900">
+              Meilleure publication du mois
+            </h2>
             <button
               type="button"
-              onClick={() => {
-                setSelectedPlatform("all");
-                setSelectedDay(null);
-              }}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer",
-                selectedPlatform === "all"
-                  ? "bg-[#0A0D14] text-white shadow-md ring-2 ring-slate-900/10"
-                  : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-              )}
+              onClick={() => setIsAnalysisModalOpen(true)}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-900"
             >
-              <Layers className={cn("size-3.5", selectedPlatform === "all" ? "text-[#FF5722]" : "text-slate-400")} />
-              <span>Tous les réseaux</span>
-              <span className={cn(
-                "rounded-md px-1.5 py-0.5 text-[10px] font-black",
-                selectedPlatform === "all" ? "bg-white/15 text-white" : "bg-white border border-slate-200 text-slate-800"
-              )}>
-                {totalFollowers > 0 ? formatNumber(totalFollowers) : "Actif"}
-              </span>
+              Voir l&apos;analyse complète
             </button>
+          </div>
+          <FeaturedPost
+            post={topPost}
+            url={postUrlOf(topPost)}
+            engagement={postEngagement(topPost)}
+            onOpen={() => setSelectedPostDetail(topPost)}
+            onInspire={() => inspire(topPost)}
+          />
+        </section>
+      )}
 
-            {/* Onglets Réseaux Spécifiques */}
-            {competitor.platforms.map((p) => {
-              const PlatformIcon = ICON_MAP[p.platform] || FacebookIcon;
-              const isSelected = selectedPlatform === p.platform;
-              return (
+      {/* ── Flux des publications ── */}
+      <section id="flux" className="scroll-mt-6" aria-labelledby="flux-title">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 id="flux-title" className="text-[15px] font-bold text-slate-900">
+              Flux des publications
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {selectedDay !== null
+                ? `${displayedPosts.length} publication${displayedPosts.length > 1 ? "s" : ""} le ${selectedDay} ${formatMonth(currentMonth)}.`
+                : viewFilter === "month"
+                  ? `${displayedPosts.length} publication${displayedPosts.length > 1 ? "s" : ""} en ${formatMonth(currentMonth)}.`
+                  : `${displayedPosts.length} publication${displayedPosts.length > 1 ? "s" : ""} collectée${displayedPosts.length > 1 ? "s" : ""} depuis le début du suivi.`}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+              {([["month", "Ce mois"], ["all", "Tout l'historique"]] as const).map(([key, label]) => (
                 <button
-                  key={p.platform}
+                  key={key}
                   type="button"
+                  aria-pressed={viewFilter === key && selectedDay === null}
                   onClick={() => {
-                    setSelectedPlatform(p.platform);
+                    setViewFilter(key);
                     setSelectedDay(null);
                   }}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer",
-                    isSelected
-                      ? "bg-[#0A0D14] text-white shadow-md ring-2 ring-[#FF5722]/30"
-                      : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    "rounded-md px-3 py-1 text-xs font-semibold transition-colors",
+                    viewFilter === key && selectedDay === null ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900",
                   )}
                 >
-                  <HugeiconsIcon
-                    icon={PlatformIcon}
-                    className={cn("size-3.5", isSelected ? "text-[#FF5722]" : "text-slate-500")}
-                  />
-                  <span className="capitalize">{p.platform}</span>
-                  {p.handle && (
-                    <span className={cn("text-[11px] font-medium hidden sm:inline", isSelected ? "text-white/60" : "text-slate-400")}>
-                      @{usernameFromHandle(p.handle)}
-                    </span>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+              {([["recent", "Plus récents"], ["engaging", "Plus engageants"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={sortBy === key}
+                  onClick={() => setSortBy(key)}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-xs font-semibold transition-colors",
+                    sortBy === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900",
                   )}
-                  <span className={cn(
-                    "rounded-md px-1.5 py-0.5 text-[10px] font-black",
-                    isSelected ? "bg-white/15 text-white" : "bg-white border border-slate-200 text-slate-800"
-                  )}>
-                    {p.followers > 0 ? formatNumber(p.followers) : "Actif"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Actions pour le canal actif */}
-          {activePlatformObj && (
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Boutons d'export direct du canal actif */}
-              <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => handleExport("pdf", activePlatformObj.platform)}
-                  disabled={isExporting}
-                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-orange-50 hover:text-[#FF5722] transition-colors cursor-pointer"
-                  title={`Télécharger le rapport ${activePlatformObj.platform} en PDF`}
                 >
-                  <FileText className="size-3" />
-                  <span>PDF {activePlatformObj.platform}</span>
+                  {label}
                 </button>
-                <div className="h-4 w-px bg-slate-200" />
-                <button
-                  type="button"
-                  onClick={() => handleExport("pptx", activePlatformObj.platform)}
-                  disabled={isExporting}
-                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-orange-50 hover:text-[#FF5722] transition-colors cursor-pointer"
-                  title={`Télécharger le rapport ${activePlatformObj.platform} en PPTX`}
-                >
-                  <Presentation className="size-3" />
-                  <span>PPTX {activePlatformObj.platform}</span>
-                </button>
-              </div>
-
-              <a
-                href={buildProfileUrl(activePlatformObj.platform, activePlatformObj.handle) || activePlatformObj.profileUrl || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors hover:border-[#FF5722] hover:text-[#FF5722]"
-              >
-                <span>Consulter la page officielle</span>
-                <ExternalLink className="size-3 text-slate-400" />
-              </a>
-            </div>
-          )}
-        </div>
-
-        {/* Sous-titre informatif de la tabulation active */}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-[#FF5722]" />
-            <span className="font-semibold text-slate-700">
-              {selectedPlatform === "all"
-                ? `Vue consolidée de l'ensemble des ${competitor.platforms.length} canal/canaux sous surveillance.`
-                : `Détail exclusif de la page ${activePlatformObj?.platform.toUpperCase()} (@${usernameFromHandle(activePlatformObj?.handle)})`}
-            </span>
-          </div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            {currentAllPosts.length} publication(s) indexée(s)
-          </span>
-        </div>
-      </div>
-
-      {/* ── 3. Top 4 Real Performance Metrics ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Audience totale */}
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">
-              {selectedPlatform === "all" ? "Audience cumulée" : `Abonnés ${selectedPlatform.toUpperCase()}`}
-            </span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-              <Users className="size-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-black tracking-tight text-slate-900">
-              {displayedFollowers > 0 ? displayedFollowers.toLocaleString("fr-FR") : "—"}
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-500">Abonnés réels</span>
-              <span className="font-bold text-[#FF5722]">En direct</span>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Publications analysées */}
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Publications suivies</span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-orange-50 text-[#FF5722]">
-              <Layers className="size-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-black tracking-tight text-slate-900">
-              {currentAllPosts.length}
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-500">Contenus indexés</span>
-              <span className="font-bold text-slate-900">
-                {currentMonthPosts.length} ce mois
-              </span>
-            </div>
-          </div>
-        </div>
+        <SyncNote
+          sources={currentPlatforms.map((p) => ({ platform: p.platform, note: p.lastError ?? null }))}
+          onSync={handleSync}
+          syncing={isSyncing}
+          onReconnect={handleReconnectFacebook}
+        />
 
-        {/* Interactions totales */}
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Interactions totales</span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-              <Heart className="size-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-black tracking-tight text-slate-900">
-              {globalInteractions > 0 ? globalInteractions.toLocaleString("fr-FR") : (monthInteractions > 0 ? monthInteractions : 0)}
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-500">J&apos;aime, com. &amp; partages</span>
-              <span className="font-bold text-[#FF5722]">
-                {globalLikes} likes · {globalComments} com.
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Taux d'engagement moyen */}
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Taux d&apos;engagement</span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-orange-50 text-[#FF5722]">
-              <TrendingUp className="size-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-black tracking-tight text-slate-900">
-              {monthEngagement > 0
-                ? `${monthEngagement.toFixed(1)} %`
-                : globalInteractions > 0 && totalFollowers > 0
-                ? `${((globalInteractions / totalFollowers) * 100).toFixed(1)} %`
-                : "0.0 %"}
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-500">Ratio moyen par publication</span>
-              <span className="font-bold text-slate-900">Benchmark</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 3. Main Dashboard Layout (Full Width) ── */}
-      <div className="flex flex-col gap-6 w-full">
-        <div className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm w-full">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-base font-bold tracking-tight text-slate-900">
-                  Publications du concurrent ({displayedPosts.length})
-                </h2>
-                {selectedPlatform !== "all" && (
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
-                    {selectedPlatform}
-                  </span>
-                )}
-              </div>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {viewFilter === "month"
-                  ? `Publications relevées depuis le 1er ${formatMonth(currentMonth)}.`
-                  : "Historique complet des publications indexées pour ce concurrent."}
-              </p>
-            </div>
-
-            {/* View Filter Pill */}
-            <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50/70 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setViewFilter("month");
-                  setSelectedDay(null);
-                }}
-                className={cn(
-                  "rounded-lg px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
-                  viewFilter === "month" && !selectedDay
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Depuis le 1er du mois ({currentMonthPosts.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setViewFilter("all");
-                  setSelectedDay(null);
-                }}
-                className={cn(
-                  "rounded-lg px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
-                  viewFilter === "all" && !selectedDay
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Toutes ({currentAllPosts.length})
-              </button>
-            </div>
-          </div>
-
-          {/* Main Layout: Compact Calendar (left) + Posts Grid (right) */}
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-            {/* Left side: Mini Calendar Card */}
-            <div className="col-span-12 lg:col-span-4 xl:col-span-3 flex flex-col gap-4 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4">
-              <MiniCalendar
-                month={currentMonth}
-                posts={currentAllPosts}
-                availableMonths={availableMonths}
-                onMonthChange={(m) => {
-                  setSelectedMonth(m);
-                  setSelectedDay(null);
-                  setViewFilter("month");
-                }}
-                selectedDay={selectedDay}
-                onSelectDay={(d) => {
-                  setSelectedDay(d);
-                  if (d !== null) setViewFilter("month");
-                }}
+        {displayedPosts.length === 0 ? (
+          <SourceNotice
+            sources={currentPlatforms.map((p) => ({ platform: p.platform, note: p.lastError ?? null }))}
+            onSync={handleSync}
+            syncing={isSyncing}
+            onReconnect={handleReconnectFacebook}
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {paginatedPosts.map((post, i) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                delay={i * 40}
+                engagement={postEngagement(post)}
+                onOpen={() => setSelectedPostDetail(post)}
+                onInspire={() => inspire(post)}
               />
-
-              {/* Monthly quick stats summary */}
-              <div className="border-t border-slate-200/70 pt-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Posts du mois</span>
-                  <span className="font-bold text-slate-900">{currentMonthPosts.length}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Interactions du mois</span>
-                  <span className="font-bold text-[#FF5722]">{monthInteractions.toLocaleString("fr-FR")}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Engagement moyen</span>
-                  <span className="font-bold text-slate-700">{monthEngagement.toFixed(1)}%</span>
-                </div>
-
-                {selectedDay !== null && (
-                  <div className="mt-2 flex items-center justify-between rounded-xl bg-orange-50 border border-orange-200/60 p-2 text-xs">
-                    <span className="font-bold text-[#FF5722]">Jour {selectedDay} filtré</span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDay(null)}
-                      className="text-[10px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer underline"
-                    >
-                      Effacer
-                    </button>
-                  </div>
-                )}
-
-                {selectedMonth && selectedMonth !== detail.month && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedMonth(detail.month);
-                      setSelectedDay(null);
-                      setViewFilter("month");
-                    }}
-                    className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 text-white px-3 py-2 text-xs font-bold hover:bg-[#FF5722] transition-colors cursor-pointer shadow-2xs"
-                  >
-                    <RotateCcw className="size-3" />
-                    <span>Mois présent ({formatMonth(detail.month)})</span>
-                  </button>
-                )}
-
-                {/* Direct Month Export */}
-                <div className="mt-2 border-t border-slate-200/70 pt-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Rapport de {formatMonth(currentMonth)}
-                  </span>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleExport("pdf")}
-                      disabled={isExporting}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0A0D14] px-2.5 py-1.5 text-xs font-bold text-white transition-all hover:bg-[#FF5722] disabled:opacity-50 cursor-pointer shadow-2xs"
-                    >
-                      <FileText className="size-3" />
-                      PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport("pptx")}
-                      disabled={isExporting}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-all hover:border-[#FF5722] hover:text-[#FF5722] disabled:opacity-50 cursor-pointer shadow-2xs"
-                    >
-                      <Presentation className="size-3" />
-                      PPTX
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right side: Posts Grid */}
-            <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col">
-              {displayedPosts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-16 text-center">
-                  <Layers className="size-8 text-slate-300" />
-                  <p className="mt-2 text-sm font-bold text-slate-800">
-                    Aucune publication trouvée pour ce filtre
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500 max-w-sm">
-                    {selectedDay !== null
-                      ? `Aucune publication relevée pour le ${selectedDay} ${formatMonth(currentMonth)}.`
-                      : `Aucune publication répertoriée pour ${formatMonth(currentMonth)}.`}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleSync}
-                    disabled={isSyncing}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0A0D14] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#FF5722] cursor-pointer"
-                  >
-                    <RefreshCw className={cn("size-3.5", isSyncing && "animate-spin")} />
-                    Actualiser les données
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {paginatedPosts.map((post) => {
-                  const PlatformIcon = ICON_MAP[post.platform] || FacebookIcon;
-                  const pubDate = new Date(post.publishedAt).toLocaleDateString("fr-FR", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  });
-
-                  const platformObj = competitor.platforms.find((p) => p.platform === post.platform);
-                  const postTargetUrl =
-                    post.postUrl ||
-                    (platformObj ? buildProfileUrl(platformObj.platform, platformObj.handle) || platformObj.profileUrl : null) ||
-                    buildProfileUrl(post.platform, competitor.name) ||
-                    "#";
-
-                  return (
-                    <div
-                      key={post.id}
-                      onClick={() => setSelectedPostDetail(post)}
-                      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-[#FF5722]/50 hover:shadow-lg hover:shadow-orange-500/10 cursor-pointer text-left"
-                    >
-                      {/* 1. Media Image Banner */}
-                      {post.mediaUrl ? (
-                        <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={post.mediaUrl}
-                            alt="Aperçu publication"
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                          {/* Platform & Date Badge */}
-                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-lg bg-black/75 px-2 py-1 backdrop-blur-md text-[10px] font-bold text-white shadow-sm">
-                            <HugeiconsIcon icon={PlatformIcon} className="size-3 text-white" />
-                            <span className="capitalize">{post.platform}</span>
-                            <span className="text-white/40">•</span>
-                            <span>{timeAgo(post.publishedAt)}</span>
-                          </div>
-
-                          {/* External Link Icon */}
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(postTargetUrl, "_blank", "noopener,noreferrer");
-                            }}
-                            className="absolute top-2.5 right-2.5 flex size-7 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur-md transition-all group-hover:bg-[#FF5722] group-hover:scale-110"
-                            title={`Ouvrir sur ${post.platform}`}
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative h-28 w-full overflow-hidden bg-gradient-to-br from-[#0A0D14] to-slate-800 p-3.5 flex flex-col justify-between">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold text-white">
-                              <HugeiconsIcon icon={PlatformIcon} className="size-3 text-[#FF5722]" />
-                              <span className="capitalize">{post.platform}</span>
-                              <span className="text-white/40">•</span>
-                              <span>{timeAgo(post.publishedAt)}</span>
-                            </div>
-                            <div
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(postTargetUrl, "_blank", "noopener,noreferrer");
-                              }}
-                              className="flex size-6 items-center justify-center rounded-full bg-white/10 text-white group-hover:bg-[#FF5722] transition-colors"
-                              title={`Ouvrir sur ${post.platform}`}
-                            >
-                              <ExternalLink className="size-3" />
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                            Publication officielle
-                          </span>
-                        </div>
-                      )}
-
-                      {/* 2. Content snippet */}
-                      <div className="flex flex-1 flex-col justify-between p-4">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase text-slate-400">
-                            {pubDate}
-                          </span>
-                          <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-slate-800 font-medium">
-                            {stripRichTextFormatting(post.content) || "Consulter le contenu sur la page officielle du concurrent"}
-                          </p>
-                        </div>
-
-                        {/* 3. Footer with metrics and direct action */}
-                        <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-100 pt-3">
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700">
-                                <Heart className="size-3.5 text-[#FF5722]" />
-                                {post.likes}
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700">
-                                <MessageCircle className="size-3.5 text-slate-500" />
-                                {post.comments}
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700">
-                                <Share2 className="size-3.5 text-slate-500" />
-                                {post.shares}
-                              </span>
-                            </div>
-
-                            <span className="rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-[#FF5722]">
-                              {post.engagementRate > 0 ? `${post.engagementRate.toFixed(1)}% eng.` : "Actif"}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[11px] font-bold text-slate-900 group-hover:text-[#FF5722] transition-colors inline-flex items-center gap-1">
-                              Voir le détail
-                              <ChevronRight className="size-3" />
-                            </span>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                router.push(`/schedule?content=${encodeURIComponent(post.content.slice(0, 150))}`);
-                              }}
-                              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 hover:bg-[#FF5722] hover:text-white px-2 py-1 text-[10px] font-bold text-slate-700 transition-colors cursor-pointer"
-                              title="S'inspirer de cette idée dans KORAPULSE Studio"
-                            >
-                              <PenTool className="size-2.5" />
-                              S&apos;inspirer
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-5">
-                <p className="text-xs font-medium text-slate-500">
-                  Affichage de <span className="font-bold text-slate-800">{(currentPage - 1) * POSTS_PER_PAGE + 1}</span> à{" "}
-                  <span className="font-bold text-slate-800">
-                    {Math.min(currentPage * POSTS_PER_PAGE, displayedPosts.length)}
-                  </span>{" "}
-                  sur <span className="font-bold text-slate-800">{displayedPosts.length}</span> publications
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                  >
-                    <ChevronLeft className="size-3.5" />
-                    Précédent
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      type="button"
-                      onClick={() => setCurrentPage(page)}
-                      className={cn(
-                        "size-8 rounded-xl text-xs font-bold transition-all cursor-pointer",
-                        currentPage === page
-                          ? "bg-[#0A0D14] text-white shadow-xs"
-                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      )}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                  >
-                    Suivant
-                    <ChevronRight className="size-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
+            ))}
           </div>
-        </div>
-      </div>
-    </div>
+        )}
+
+        {totalPages > 1 && (
+          <nav aria-label="Pagination" className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-5 sm:flex-row">
+            <p className="text-sm text-slate-500">
+              {(currentPage - 1) * POSTS_PER_PAGE + 1}–{Math.min(currentPage * POSTS_PER_PAGE, displayedPosts.length)} sur {displayedPosts.length}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className={btn}
+              >
+                <ChevronLeft className="size-3.5" /> Précédent
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  aria-current={currentPage === page ? "page" : undefined}
+                  onClick={() => setCurrentPage(page)}
+                  className={cn(
+                    "size-8 rounded-lg text-xs font-bold transition-colors",
+                    currentPage === page ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  )}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className={btn}
+              >
+                Suivant <ChevronRight className="size-3.5" />
+              </button>
+            </div>
+          </nav>
+        )}
+      </section>
 
       {/* ── 4. Modal Analyse & Recommandations Stratégiques KORAPULSE ── */}
       <Dialog open={isAnalysisModalOpen} onOpenChange={setIsAnalysisModalOpen}>
@@ -1221,7 +988,7 @@ export default function CompetitorDetailPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-[#FF5722] font-bold mt-0.5">•</span>
                   <span>
-                    <strong>Format privilégié :</strong> Publications avec visuels et photos de communication institutionnelle.
+                    <strong>Format :</strong> {mediaShare} % des publications collectées contiennent un visuel.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
@@ -1233,7 +1000,10 @@ export default function CompetitorDetailPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-[#FF5722] font-bold mt-0.5">•</span>
                   <span>
-                    <strong>Opportunité KORAPULSE :</strong> Développez des formats explicatifs pour capter davantage d&apos;interactions directes dans votre secteur.
+                    <strong>Meilleur jour :</strong>{" "}
+                    {bestWeekday && bestWeekday.avg > 0
+                      ? `le ${WEEKDAYS[bestWeekday.i]}, avec ${fr(bestWeekday.avg)} interactions par post en moyenne.`
+                      : "pas encore assez de publications pour le déterminer."}
                   </span>
                 </li>
               </ul>
@@ -1286,29 +1056,35 @@ export default function CompetitorDetailPage() {
                 Répartition des réactions
               </h4>
               <p className="mt-0.5 text-xs text-slate-500">
-                Typologie des {globalInteractions} interactions mesurées sur ce concurrent.
+                {globalEngagementKnown
+                  ? `Typologie des ${globalInteractions} interactions mesurées sur ce concurrent.`
+                  : `Interactions non communiquées par ${unreadableLabel || "ce réseau"}.`}
               </p>
 
               <div className="mt-4 flex flex-col gap-3">
                 <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    style={{
-                      width: `${globalInteractions > 0 ? (globalLikes / globalInteractions) * 100 : 70}%`,
-                    }}
-                    className="bg-[#FF5722]"
-                  />
-                  <div
-                    style={{
-                      width: `${globalInteractions > 0 ? (globalComments / globalInteractions) * 100 : 20}%`,
-                    }}
-                    className="bg-slate-900"
-                  />
-                  <div
-                    style={{
-                      width: `${globalInteractions > 0 ? (globalShares / globalInteractions) * 100 : 10}%`,
-                    }}
-                    className="bg-slate-400"
-                  />
+                  {globalEngagementKnown && globalInteractions > 0 ? (
+                    <>
+                      <div
+                        style={{
+                          width: `${(globalLikes / globalInteractions) * 100}%`,
+                        }}
+                        className="bg-[#FF5722]"
+                      />
+                      <div
+                        style={{
+                          width: `${(globalComments / globalInteractions) * 100}%`,
+                        }}
+                        className="bg-slate-900"
+                      />
+                      <div
+                        style={{
+                          width: `${(globalShares / globalInteractions) * 100}%`,
+                        }}
+                        className="bg-slate-400"
+                      />
+                    </>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 pt-2 text-xs">
@@ -1317,21 +1093,33 @@ export default function CompetitorDetailPage() {
                       <span className="size-2 rounded-full bg-[#FF5722]" />
                       J&apos;aime
                     </span>
-                    <span className="text-base font-bold text-slate-900">{globalLikes}</span>
+                    <span
+                      className={`text-base font-bold ${globalEngagementKnown ? "text-slate-900" : "text-slate-400"}`}
+                    >
+                      {globalEngagementKnown ? globalLikes : "n/d"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-0.5 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
                     <span className="flex items-center gap-1.5 font-medium text-slate-600 text-[11px]">
                       <span className="size-2 rounded-full bg-slate-900" />
                       Commentaires
                     </span>
-                    <span className="text-base font-bold text-slate-900">{globalComments}</span>
+                    <span
+                      className={`text-base font-bold ${globalEngagementKnown ? "text-slate-900" : "text-slate-400"}`}
+                    >
+                      {globalEngagementKnown ? globalComments : "n/d"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-0.5 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
                     <span className="flex items-center gap-1.5 font-medium text-slate-600 text-[11px]">
                       <span className="size-2 rounded-full bg-slate-400" />
                       Partages
                     </span>
-                    <span className="text-base font-bold text-slate-900">{globalShares}</span>
+                    <span
+                      className={`text-base font-bold ${globalEngagementKnown ? "text-slate-900" : "text-slate-400"}`}
+                    >
+                      {globalEngagementKnown ? globalShares : "n/d"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1348,6 +1136,7 @@ export default function CompetitorDetailPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl border border-slate-200 bg-white shadow-2xl">
           {selectedPostDetail && (() => {
             const PlatformIcon = ICON_MAP[selectedPostDetail.platform] || FacebookIcon;
+            const detailEngagementKnown = engagementKnown(selectedPostDetail);
             const platformObj = competitor.platforms.find((p) => p.platform === selectedPostDetail.platform);
             const postTargetUrl =
               selectedPostDetail.postUrl ||
@@ -1377,7 +1166,7 @@ export default function CompetitorDetailPage() {
                         {competitor.name}
                         <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
                           <HugeiconsIcon icon={PlatformIcon} className="size-3 text-slate-900" />
-                          {selectedPostDetail.platform}
+                          {PLATFORM_LABEL[selectedPostDetail.platform] ?? selectedPostDetail.platform}
                         </span>
                       </DialogTitle>
                       <DialogDescription className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
@@ -1415,8 +1204,8 @@ export default function CompetitorDetailPage() {
                         <Heart className="size-3.5 text-[#FF5722]" />
                         J&apos;aime
                       </span>
-                      <span className="mt-1 text-sm font-extrabold text-slate-900">
-                        {selectedPostDetail.likes}
+                      <span className={`mt-1 text-sm font-extrabold ${detailEngagementKnown ? "text-slate-900" : "text-slate-400"}`}>
+                        {detailEngagementKnown ? selectedPostDetail.likes : "n/d"}
                       </span>
                     </div>
                     <div className="flex flex-col items-center border-l border-slate-200">
@@ -1424,8 +1213,8 @@ export default function CompetitorDetailPage() {
                         <MessageCircle className="size-3.5 text-slate-600" />
                         Commentaires
                       </span>
-                      <span className="mt-1 text-sm font-extrabold text-slate-900">
-                        {selectedPostDetail.comments}
+                      <span className={`mt-1 text-sm font-extrabold ${detailEngagementKnown ? "text-slate-900" : "text-slate-400"}`}>
+                        {detailEngagementKnown ? selectedPostDetail.comments : "n/d"}
                       </span>
                     </div>
                     <div className="flex flex-col items-center border-l border-slate-200">
@@ -1433,8 +1222,8 @@ export default function CompetitorDetailPage() {
                         <Share2 className="size-3.5 text-slate-600" />
                         Partages
                       </span>
-                      <span className="mt-1 text-sm font-extrabold text-slate-900">
-                        {selectedPostDetail.shares}
+                      <span className={`mt-1 text-sm font-extrabold ${detailEngagementKnown ? "text-slate-900" : "text-slate-400"}`}>
+                        {detailEngagementKnown ? selectedPostDetail.shares : "n/d"}
                       </span>
                     </div>
                     <div className="flex flex-col items-center border-l border-slate-200">
@@ -1443,7 +1232,7 @@ export default function CompetitorDetailPage() {
                         Engagement
                       </span>
                       <span className="mt-1 text-sm font-extrabold text-[#FF5722]">
-                        {selectedPostDetail.engagementRate > 0
+                        {detailEngagementKnown && selectedPostDetail.engagementRate > 0
                           ? `${selectedPostDetail.engagementRate.toFixed(1)}%`
                           : "—"}
                       </span>

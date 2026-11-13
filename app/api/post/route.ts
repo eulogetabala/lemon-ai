@@ -1,7 +1,8 @@
 import { POST_STATUS } from "@/constants/post";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { ImageObject } from "@/types/post.type";
-import { checkMonthlyPostsLimit, getPlanFromClerkHas } from "@/lib/plan-limits";
+import { checkMonthlyPostsLimit, resolvePlanForUserId } from "@/lib/plan-limits-server";
+import { getWorkspaceFromRequest } from "@/lib/request-workspace";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
         const { supabase, userId } = await getSupabaseServerClient()
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+        const workspace = await getWorkspaceFromRequest(request, supabase, userId)
         const searchParams = request.nextUrl.searchParams
         const status = searchParams.get("status")
         const channelIds = searchParams.getAll("channelIds")
@@ -27,6 +29,7 @@ export async function GET(request: NextRequest) {
             .from("scheduled_posts")
             .select("*, user_channels(*, channel_types(id, type, name, color, character_limit))")
             .eq("user_id", userId)
+            .eq("workspace_id", workspace.id)
             .order("scheduled_at", { ascending: false })
 
         if (status) postQuery = postQuery.eq("status", status)
@@ -63,10 +66,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { has, userId } = await auth()
+        const { userId } = await auth()
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
         const { supabase } = await getSupabaseServerClient()
+        const workspace = await getWorkspaceFromRequest(request, supabase, userId)
         const { posts, scheduledAt, status } = await request.json()
 
         if (status !== undefined && status !== POST_STATUS.DRAFT) {
@@ -88,8 +92,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "No valid posts provided" }, { status: 400 })
         }
 
-        const planId = getPlanFromClerkHas(has);
-        const limitCheck = await checkMonthlyPostsLimit(supabase, userId, planId, normalizedPosts.length);
+        const planId = await resolvePlanForUserId(userId);
+        const limitCheck = await checkMonthlyPostsLimit(
+            supabase,
+            userId,
+            planId,
+            normalizedPosts.length,
+            workspace.id
+        );
         if (!limitCheck.allowed) {
             return NextResponse.json({
                 error: limitCheck.message || "Limite de publications atteinte pour votre forfait. Passez au forfait Pro pour publier sans limite."
@@ -103,6 +113,7 @@ export async function POST(request: NextRequest) {
             .from("user_channels")
             .select("id, channel_type_id")
             .eq("user_id", userId)
+            .eq("workspace_id", workspace.id)
             .eq("is_active", true)
             .eq("is_connected", true)
 
@@ -128,6 +139,7 @@ export async function POST(request: NextRequest) {
                 : connectedByType.get(post.channelTypeId!)!
             return {
                 user_id: userId,
+                workspace_id: workspace.id,
                 user_channel_id: userChannel.id,
                 content: post.content,
                 images: post.images,

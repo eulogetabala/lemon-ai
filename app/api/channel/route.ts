@@ -1,3 +1,4 @@
+import { getWorkspaceFromRequest } from "@/lib/request-workspace";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -6,6 +7,7 @@ export async function GET(request: NextRequest) {
         const { supabase, userId } = await getSupabaseServerClient()
         if (!userId) return new NextResponse('Unauthorized', { status: 401 })
 
+        const workspace = await getWorkspaceFromRequest(request, supabase, userId)
         const filter = request.nextUrl.searchParams.get('filter')
 
         const [typesRes, userChannelsRes] = await Promise.all([
@@ -15,6 +17,7 @@ export async function GET(request: NextRequest) {
             supabase.from("user_channels")
                 .select("*")
                 .eq("user_id", userId)
+                .eq("workspace_id", workspace.id)
         ]);
 
         if (typesRes.error || userChannelsRes.error) {
