@@ -9,6 +9,14 @@ import {
   usernameFromHandle,
   buildProfileUrl,
 } from "@/lib/competitor-stats"
+import {
+  FB_PUBLIC_FEED_REQUIREMENT,
+  FB_PUBLIC_NOTE_PREFIX,
+  IG_PAGE_REQUIREMENT,
+  IG_REQUIRED_SCOPES,
+  metaScopeAdvice,
+  shortProviderError,
+} from "@/lib/competitor-sync-notes"
 
 export { usernameFromHandle, buildProfileUrl }
 
@@ -205,6 +213,16 @@ async function fetchPublicFacebookInfo(slug: string): Promise<number | undefined
 // <script type="application/json"> blocks, so real posts (content, date, url)
 // can be recovered without the Graph API. This is intentionally limited: the
 // logged-out page only exposes the latest posts, not the full history.
+
+/**
+ * Key identifying one post across providers. Instagram Graph returns a media id
+ * ("1784…") while the public scrape returns another numeric id for the same post,
+ * so the permalink shortcode is the only stable identity between the two.
+ */
+export function postDedupeKey(postId: string, postUrl?: string | null): string {
+  const shortcode = postUrl?.match(/instagram\.com\/(?:[\w.]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/)?.[1]
+  return shortcode ? `ig:${shortcode}` : postId
+}
 
 /**
  * Facebook exposes the same post under a numeric post id and under a base64
@@ -1034,7 +1052,7 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
 
   if (!cred?.token) {
     return publicFallback(
-      "Données publiques Facebook récupérées sans token OAuth — publications limitées aux plus récentes.",
+      `${FB_PUBLIC_NOTE_PREFIX} récupérées sans token OAuth — publications limitées aux plus récentes.`,
     )
   }
 
@@ -1096,26 +1114,33 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
       posts: publicPosts,
       note:
         publicPosts.length > 0
-          ? "Fil complet indisponible (Page Public Content Access requis) — publications récentes lues sur la page publique."
+          ? `${FB_PUBLIC_NOTE_PREFIX} — le fil complet exige la fonctionnalité Page Public Content Access : publications récentes lues sur la page publique.`
           : "Aucune publication récupérée (token sans accès au fil concurrent).",
     }
   } catch (graphError) {
     // The Graph API frequently rejects public-page lookups (400/403). Never lose
     // the whole sync for that: fall back to the public page data instead.
-    const message = (graphError as Error).message
+    const message = shortProviderError((graphError as Error).message)
     const [publicFollowers, publicPosts] = await Promise.all([
       fetchPublicFacebookInfo(slug),
       fetchPublicFacebookPosts(slug),
     ])
+    // (#10) on a Page we do not manage is Meta's permanent "Page Public Content Access"
+    // gate, not a fault: say it plainly instead of showing the raw API error.
+    const permanentGate = /\(#10\)|Public Content Access|Public Metadata Access/i.test(message)
+    if (permanentGate) console.warn("[facebook] fil concurrent non accessible via Graph", message)
+    const reason = permanentGate
+      ? `${FB_PUBLIC_NOTE_PREFIX} — l'API officielle ne couvre pas les Pages concurrentes sans Page Public Content Access.`
+      : `API Graph indisponible (${message}). ${FB_PUBLIC_FEED_REQUIREMENT}`
     return {
       followers: publicFollowers,
       posts: publicPosts,
       note:
         publicPosts.length > 0
-          ? `API Graph indisponible (${message}) — publications récentes lues sur la page publique.`
+          ? `${reason} Publications limitées aux plus récentes.`
           : publicFollowers
-            ? `API Graph indisponible (${message}) — abonnés lus sur la page publique.`
-            : `API Graph indisponible (${message}).`,
+            ? `${reason} Seuls les abonnés ont pu être lus.`
+            : reason,
     }
   }
 }
@@ -1123,18 +1148,10 @@ async function fetchFacebookPage(row: CompetitorPlatformRow, cred: Credential): 
 /**
  * Why Instagram engagement is out of reach. Meta only exposes like/comment counts
  * through Business Discovery, which requires the caller to be an Instagram
- * Business/Creator account linked to a Facebook Page and to hold the Facebook
- * Login scopes below — the Instagram Login product alone cannot do it.
+ * Business/Creator account linked to a Facebook Page and to hold {@link IG_REQUIRED_SCOPES}
+ * — the Instagram Login product alone cannot do it.
  */
-const IG_DISCOVERY_REQUIREMENT =
-  "Meta ne fournit les statistiques Instagram qu'à un compte Business/Créateur relié à une Page Facebook : reconnectez Facebook en cochant cette Page (droits instagram_basic, instagram_manage_insights, pages_read_engagement, business_management), puis resynchronisez."
-
-/** Facebook Login scopes Business Discovery cannot work without. */
-const IG_REQUIRED_SCOPES = [
-  "instagram_basic",
-  "instagram_manage_insights",
-  "pages_read_engagement",
-] as const
+const IG_DISCOVERY_REQUIREMENT = IG_PAGE_REQUIREMENT
 
 /**
  * Which of {@link IG_REQUIRED_SCOPES} the token never received. A token can be
@@ -1197,11 +1214,15 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
   let lastError = ""
   let foundBusinessAccount = false
   const resolveErrors: string[] = []
+  // The token that actually reaches Business Discovery: an alternate credential
+  // can carry different scopes than the preferred one, so probe this one only.
+  let probedToken = tokens[0] ?? ""
   for (const token of tokens) {
     const account = await resolveInstagramBusinessAccount(token, resolveErrors)
     if (!account) continue
     foundBusinessAccount = true
     const authToken = account.token || token
+    probedToken = authToken
     try {
       discovery = await fetchJson(
         `https://${account.host}/${account.id}?fields=${encodeURIComponent(fields)}`,
@@ -1216,14 +1237,10 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
   }
 
   // Only probe the token when discovery actually failed: the answer is what turns
-  // a cryptic "(#10)" into an actionable list of scopes to enable in Meta.
+  // a cryptic "(#10)" into an actionable diagnosis (missing scope vs. Page/app).
   let scopeHint: Promise<string> | null = null
   const describeMissingScopes = () => {
-    scopeHint ??= missingMetaScopes(tokens[0]).then((missing) =>
-      missing.length
-        ? ` Autorisations absentes du token Meta : ${missing.join(", ")} — activez-les sur l'app Meta, puis reconnectez Facebook et resynchronisez.`
-        : "",
-    )
+    scopeHint ??= missingMetaScopes(probedToken).then(metaScopeAdvice)
     return scopeHint
   }
 
@@ -1234,7 +1251,7 @@ async function fetchInstagramPage(row: CompetitorPlatformRow, cred: Credential):
   if (!discovery?.business_discovery) {
     const hint = await describeMissingScopes()
     return publicFallback(
-      `Business Discovery indisponible pour « ${username} » (${lastError || "compte non professionnel"}).${hint} ${IG_DISCOVERY_REQUIREMENT}`,
+      `Business Discovery indisponible pour « ${username} » (${lastError || "compte non professionnel"}).${hint}`,
     )
   }
 
@@ -1587,10 +1604,44 @@ export async function syncCompetitorPlatform(
     .eq("id", row.id)
 
   // Images already copied to our storage are reused instead of re-downloaded.
-  const { data: storedPosts } = await supabase
+  let { data: storedPosts, error: storedError } = (await supabase
     .from("competitor_posts")
-    .select("id, provider_post_id, content, media_url")
-    .eq("platform_id", row.id)
+    .select("id, provider_post_id, content, media_url, post_url, likes, comments")
+    .eq("platform_id", row.id)) as { data: any[] | null; error: { message: string } | null }
+  // Database without the post_url column (migration 20261103 not applied).
+  if (storedError) {
+    storedPosts = (
+      await supabase
+        .from("competitor_posts")
+        .select("id, provider_post_id, content, media_url, likes, comments")
+        .eq("platform_id", row.id)
+    ).data as any[] | null
+  }
+
+  // One post may be stored twice under different provider ids (Graph vs public scrape).
+  // Keep the row with the most engagement and delete the others.
+  const keeperByKey = new Map<string, any>()
+  const duplicateIds: string[] = []
+  for (const p of storedPosts ?? []) {
+    const key = postDedupeKey(String(p.provider_post_id), p.post_url)
+    const kept = keeperByKey.get(key)
+    if (!kept) {
+      keeperByKey.set(key, p)
+      continue
+    }
+    const score = (x: any) => (x.likes ?? 0) + (x.comments ?? 0)
+    if (score(p) > score(kept)) {
+      duplicateIds.push(kept.id)
+      keeperByKey.set(key, p)
+    } else {
+      duplicateIds.push(p.id)
+    }
+  }
+  if (duplicateIds.length > 0) {
+    const { error: dupError } = await supabase.from("competitor_posts").delete().in("id", duplicateIds)
+    if (dupError) console.error("[competitor_posts dedupe error]", dupError.message)
+    storedPosts = (storedPosts ?? []).filter((p: any) => !duplicateIds.includes(p.id))
+  }
   const storedMedia = new Map<string, string>(
     (storedPosts ?? [])
       .filter((p: any) => typeof p.media_url === "string" && p.media_url.includes(STORAGE_MARKER))
@@ -1605,7 +1656,18 @@ export async function syncCompetitorPlatform(
   )
 
   // Upsert real posts, deduplicated by provider post id.
-  for (const post of page.posts) {
+  for (const fetched of page.posts) {
+    // Reuse the stored row's id when the same post was saved under another provider id.
+    const keeper = keeperByKey.get(postDedupeKey(fetched.providerPostId, fetched.postUrl))
+    const post = keeper
+      ? {
+          ...fetched,
+          providerPostId: String(keeper.provider_post_id),
+          // A public scrape that cannot see engagement must not erase Graph counts.
+          likes: Math.max(fetched.likes, keeper.likes ?? 0),
+          comments: Math.max(fetched.comments, keeper.comments ?? 0),
+        }
+      : fetched
     const mirrored = post.mediaUrl
       ? storedMedia.get(post.providerPostId) ??
         (await mirrorImage(supabase, post.mediaUrl, `competitors/${row.id}/${safeKey(post.providerPostId)}`))

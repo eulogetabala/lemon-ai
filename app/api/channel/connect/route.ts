@@ -9,6 +9,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
+// The OAuth state replays this value as a redirect target after the provider
+// callback, so it must stay a same-origin path (an absolute URL would be an
+// open redirect).
+function safeReturnTo(value: unknown): string {
+    if (typeof value !== 'string') return '/settings';
+    const path = value.trim();
+    if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return '/settings';
+    return path;
+}
+
 export async function POST(request: NextRequest) {
     try {
         const { supabase, userId } = await getSupabaseServerClient();
@@ -17,7 +27,7 @@ export async function POST(request: NextRequest) {
         const planId = await resolvePlanForUserId(userId);
         const workspace = await getWorkspaceFromRequest(request, supabase, userId);
 
-        const { channelTypeId } = await request.json();
+        const { channelTypeId, returnTo } = await request.json();
         if (!channelTypeId) return NextResponse.json({ error: 'Channel type ID is required' }, { status: 400 });
 
         const { data: channelType, error } = await supabase
@@ -56,7 +66,7 @@ export async function POST(request: NextRequest) {
         // callback below (Instagram/Threads require an HTTPS redirect_uri).
         const requestOrigin = getRequestOrigin(request);
         const baseUrl = (requestOrigin || request.nextUrl.origin).replace(/\/+$/, "");
-        const redirectTo = `${baseUrl}/settings`;
+        const redirectTo = `${baseUrl}${safeReturnTo(returnTo)}`;
         // DB stores lowercase ('twitter'), enum is uppercase ('TWITTER') — normalise
         const normalizedType = channelType.type.toUpperCase() as ChannelTypeEnum;
         const provider = getOAuthProvider(normalizedType);

@@ -19,6 +19,7 @@ type FacebookPage = {
   id: string
   name: string
   pictureUrl: string | null
+  instagramUsername: string | null
 }
 
 interface FacebookPagePickerProps {
@@ -76,7 +77,15 @@ export function FacebookPagePicker({
     },
   })
 
-  const pages = data ?? []
+  // Pages linked to an Instagram Business account come first: they unlock the
+  // Instagram metrics, and picking any other Page silently loses them.
+  const pages = React.useMemo(
+    () =>
+      [...(data ?? [])].sort(
+        (a, b) => Number(Boolean(b.instagramUsername)) - Number(Boolean(a.instagramUsername)),
+      ),
+    [data],
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,7 +93,8 @@ export function FacebookPagePicker({
         <DialogHeader>
           <DialogTitle>Choisir une page Facebook</DialogTitle>
           <DialogDescription>
-            Sélectionnez la page sur laquelle vous souhaitez publier.
+            Sélectionnez la page sur laquelle vous souhaitez publier. Pour les statistiques
+            Instagram, choisissez la page reliée à un compte Instagram professionnel.
           </DialogDescription>
         </DialogHeader>
 
@@ -134,7 +144,14 @@ export function FacebookPagePicker({
                     {page.name?.charAt(0)?.toUpperCase() ?? "P"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="flex-1 truncate font-medium">{page.name}</span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">{page.name}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {page.instagramUsername
+                      ? `Instagram relié · @${page.instagramUsername}`
+                      : "Aucun compte Instagram relié"}
+                  </span>
+                </span>
                 {isLoadingThisPage && <Spinner className="size-4" />}
               </button>
             )

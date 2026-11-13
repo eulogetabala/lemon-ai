@@ -13,6 +13,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { stripRichTextFormatting } from "@/lib/rich-text";
+import { noteIsPublicFallback, noteNeedsMetaReconnect } from "@/lib/competitor-sync-notes";
 import type { CompetitorPost } from "@/types/competitor.type";
 import { formatMonth, formatNumber } from "../_data";
 
@@ -598,11 +599,14 @@ export function SourceNotice({
   sources,
   onSync,
   syncing,
+  onReconnect,
 }: {
   sources: { platform: string; note: string | null }[];
   onSync: () => void;
   syncing: boolean;
+  onReconnect?: () => void;
 }) {
+  const needsReconnect = sources.some((s) => noteNeedsMetaReconnect(s.note));
   return (
     <div className={cn(card, "border-dashed p-6")}>
       <h3 className="text-[15px] font-bold text-slate-900">Aucune publication collectée sur cette période</h3>
@@ -623,14 +627,25 @@ export function SourceNotice({
           );
         })}
       </ul>
-      <button
-        type="button"
-        onClick={onSync}
-        disabled={syncing}
-        className={cn("mt-4 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-black disabled:opacity-60", focusRing)}
-      >
-        {syncing ? "Synchronisation…" : "Relancer la synchronisation"}
-      </button>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {needsReconnect && onReconnect && (
+          <button
+            type="button"
+            onClick={onReconnect}
+            className={cn("rounded-lg bg-[#1877F2] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0f66d0]", focusRing)}
+          >
+            Reconnecter Facebook
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onSync}
+          disabled={syncing}
+          className={cn("rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-black disabled:opacity-60", focusRing)}
+        >
+          {syncing ? "Synchronisation…" : "Relancer la synchronisation"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -644,42 +659,77 @@ export function SyncNote({
   sources,
   onSync,
   syncing,
+  onReconnect,
 }: {
   sources: { platform: string; note: string | null }[];
   onSync: () => void;
   syncing: boolean;
+  onReconnect?: () => void;
 }) {
   const notes = sources.filter((s) => s.note);
   if (notes.length === 0) return null;
+  const needsReconnect = notes.some((s) => noteNeedsMetaReconnect(s.note));
+  // Reading a competitor's Page from the public page is Meta's normal answer,
+  // not a fault: keep that note informational so it stops reading as a bug.
+  const benign = notes.every((s) => noteIsPublicFallback(s.note));
 
   return (
-    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+    <div
+      className={cn(
+        "mb-6 rounded-2xl border p-4",
+        benign ? "border-slate-200 bg-slate-50/70" : "border-amber-200 bg-amber-50/70",
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <ul className="flex flex-col gap-2">
           {notes.map((s) => {
             const Icon = ICON_MAP[s.platform] || FacebookIcon;
+            const isPublic = noteIsPublicFallback(s.note);
             return (
               <li key={s.platform} className="flex items-start gap-2.5 text-sm">
-                <HugeiconsIcon icon={Icon} className="mt-0.5 size-4 shrink-0 text-amber-700" />
-                <p className="max-w-[70ch] text-amber-900">
-                  <span className="font-semibold">{PLATFORM_LABEL[s.platform] ?? s.platform} incomplet — </span>
+                <HugeiconsIcon
+                  icon={Icon}
+                  className={cn("mt-0.5 size-4 shrink-0", isPublic ? "text-slate-500" : "text-amber-700")}
+                />
+                <p className={cn("max-w-[70ch]", isPublic ? "text-slate-600" : "text-amber-900")}>
+                  <span className="font-semibold">
+                    {PLATFORM_LABEL[s.platform] ?? s.platform}
+                    {isPublic ? " en données publiques — " : " incomplet — "}
+                  </span>
                   {s.note}
                 </p>
               </li>
             );
           })}
         </ul>
-        <button
-          type="button"
-          onClick={onSync}
-          disabled={syncing}
-          className={cn(
-            "rounded-lg border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60",
-            focusRing,
+        <div className="flex shrink-0 items-center gap-2">
+          {needsReconnect && onReconnect && (
+            <button
+              type="button"
+              onClick={onReconnect}
+              className={cn(
+                "rounded-lg bg-[#1877F2] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#0f66d0]",
+                focusRing,
+              )}
+            >
+              Reconnecter Facebook
+            </button>
           )}
-        >
-          {syncing ? "Synchronisation…" : "Resynchroniser"}
-        </button>
+          <button
+            type="button"
+            onClick={onSync}
+            disabled={syncing}
+            className={cn(
+              "rounded-lg border bg-white px-3.5 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-60",
+              benign
+                ? "border-slate-300 text-slate-700"
+                : "border-amber-300 text-amber-900 hover:bg-amber-100",
+              focusRing,
+            )}
+          >
+            {syncing ? "Synchronisation…" : "Resynchroniser"}
+          </button>
+        </div>
       </div>
     </div>
   );

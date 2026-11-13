@@ -29,7 +29,12 @@ export async function GET() {
     const pages = await listFacebookPages(session.userAccessToken)
 
     return NextResponse.json({
-      pages: pages.map(({ id, name, pictureUrl }) => ({ id, name, pictureUrl })),
+      pages: pages.map(({ id, name, pictureUrl, instagramUsername }) => ({
+        id,
+        name,
+        pictureUrl,
+        instagramUsername,
+      })),
     })
   } catch (error) {
     console.error("[facebook/pages]", error)

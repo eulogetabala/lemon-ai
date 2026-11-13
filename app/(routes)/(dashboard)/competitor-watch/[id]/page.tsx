@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
+import { startFacebookReconnect } from "@/lib/facebook-reconnect";
+import { FacebookReconnectPicker } from "@/components/competitor/facebook-reconnect-picker";
 import {
   ArrowLeft,
   CalendarDays,
@@ -353,6 +356,12 @@ export default function CompetitorDetailPage() {
     return displayedPosts.slice(start, start + POSTS_PER_PAGE);
   }, [displayedPosts, currentPage]);
 
+  const handleReconnectFacebook = () =>
+    startFacebookReconnect({
+      returnTo: window.location.pathname,
+      onError: (message) => toast.error(message),
+    });
+
   const handleSync = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
@@ -653,6 +662,10 @@ export default function CompetitorDetailPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col pb-14">
+      <Suspense fallback={null}>
+        <FacebookReconnectPicker onSelected={handleSync} />
+      </Suspense>
+
       {/* ── Top bar ── */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link
@@ -883,6 +896,7 @@ export default function CompetitorDetailPage() {
           sources={currentPlatforms.map((p) => ({ platform: p.platform, note: p.lastError ?? null }))}
           onSync={handleSync}
           syncing={isSyncing}
+          onReconnect={handleReconnectFacebook}
         />
 
         {displayedPosts.length === 0 ? (
@@ -890,6 +904,7 @@ export default function CompetitorDetailPage() {
             sources={currentPlatforms.map((p) => ({ platform: p.platform, note: p.lastError ?? null }))}
             onSync={handleSync}
             syncing={isSyncing}
+            onReconnect={handleReconnectFacebook}
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">

@@ -5,6 +5,7 @@ import {
   fetchPublicFollowerCount,
   parseInstagramPublicHtml,
   parseLinkedinCompanyHtml,
+  postDedupeKey,
 } from "../lib/competitor-sync.ts"
 
 test("usernameFromHandle correctly parses Canal+ Congo URLs and handles", () => {
@@ -64,4 +65,12 @@ test("instagramMediaIdToIso decodes the publication date from a media id", async
   assert.equal(instagramMediaIdToIso("3999136272941966158_123")?.slice(0, 10), "2026-10-02")
   assert.equal(instagramMediaIdToIso("abc"), null)
   assert.equal(instagramMediaIdToIso("12345"), null)
+})
+
+test("postDedupeKey gives one key to the same Instagram post under different ids", () => {
+  const url = "https://www.instagram.com/p/DRabc123_-/"
+  assert.equal(postDedupeKey("17841111", url), postDedupeKey("3812345678", url))
+  assert.equal(postDedupeKey("1", "https://www.instagram.com/bch_congo/reel/DRabc123_-/"), postDedupeKey("2", url))
+  assert.notEqual(postDedupeKey("1", url), postDedupeKey("1", "https://www.instagram.com/p/OTHER/"))
+  assert.equal(postDedupeKey("99", null), "99")
 })
